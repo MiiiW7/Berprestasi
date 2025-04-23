@@ -93,9 +93,9 @@ const Postlist = () => {
   return (
     <div className="mx-6 my-6 justify-items-center">
       {/* Grid Responsif */}
-      <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:w-[400px] md:w-[800px] lg:w-[800px] xl:w-[1000px] ">
+      <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:w-[400px] md:w-[800px] lg:w-[800px] xl:w-[1000px]">
         {dataPost.map((post) => (
-          <div key={post._id} className="flex items-center">
+          <div key={post._id} className="h-full">
             <Post
               id={post.id}
               title={post.title}

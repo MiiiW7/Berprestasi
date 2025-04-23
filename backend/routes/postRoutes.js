@@ -7,6 +7,7 @@ import Post from "../models/post.js";
 import { User } from "../models/user.js";
 import { verifyToken } from "../middleware/auth.js";
 import Notification from "../models/notification.js";
+import Engagement from "../models/engagement.js";
 
 const router = express.Router();
 
@@ -43,6 +44,15 @@ router.post("/", verifyToken, uploadPost.single("image"), async (req, res) => {
 
     const savedPost = await post.save();
 
+    // Create notification for admin dashboard
+    const newPostNotification = new Notification({
+      userId: req.user.id,
+      postId: savedPost.id,
+      message: `Postingan baru dibuat: "${savedPost.title}"`,
+      type: 'general'
+    });
+    await newPostNotification.save();
+
     res.status(201).json({
       message: "Post created successfully",
       data: savedPost,
@@ -66,11 +76,7 @@ router.get("/", async (req, res) => {
         let creator = null;
         if (post.creator) {
           creator = await User.findOne({ id: post.creator }).lean();
-          console.log("Creator Data:", {
-            id: creator.id,
-            name: creator.name,
-            profilePicture: creator.profilePicture || '/uploads/profiles/default-avatar.png'
-          });
+
         }
         return {
           ...post,
@@ -91,6 +97,74 @@ router.get("/", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Terjadi kesalahan saat mengambil data post",
+      error: error.message,
+    });
+  }
+});
+
+// GET - Mendapatkan lomba trending berdasarkan jumlah follower
+// PENTING: Pindahkan endpoint trending sebelum endpoint dengan parameter dinamis
+router.get("/trending", async (req, res) => {
+  try {
+    console.log("Fetching trending posts...");
+    
+    // Periksa apakah ada post di database
+    const postCount = await Post.countDocuments();
+    console.log(`Total posts in database: ${postCount}`);
+    
+    if (postCount === 0) {
+      console.log("No posts found in database");
+      return res.status(200).json({
+        success: true,
+        data: []
+      });
+    }
+    
+    // Aggregate pipeline untuk mengurutkan post berdasarkan jumlah followers
+    const posts = await Post.aggregate([
+      // Tambahkan field followersCount yang menghitung panjang array followers
+      { 
+        $addFields: { 
+          followersCount: { 
+            $size: { 
+              $ifNull: ["$followers", []] 
+            } 
+          } 
+        } 
+      },
+      // Urutkan berdasarkan followersCount secara descending
+      { $sort: { followersCount: -1 } },
+      // Batasi hasil ke 10 dokumen
+      { $limit: 10 }
+    ]);
+    
+    console.log(`Found ${posts.length} trending posts`);
+    
+    // Populasikan informasi creator untuk setiap post
+    const populatedPosts = await Promise.all(
+      posts.map(async (post) => {
+        const creator = await User.findOne({ id: post.creator }).lean();
+        console.log(`Processing post ${post.id} created by ${post.creator}`);
+        return {
+          ...post,
+          creator: creator ? { 
+            id: creator.id, 
+            name: creator.name,
+            profilePicture: creator.profilePicture || '/uploads/profiles/default-avatar.png'
+          } : null,
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      data: populatedPosts,
+    });
+  } catch (error) {
+    console.error("Error fetching trending posts:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching trending posts",
       error: error.message,
     });
   }
@@ -188,7 +262,7 @@ router.get("/kategori/:category", async (req, res) => {
         const creator = await User.findOne({ id: post.creator }).lean();
         return {
           ...post,
-          creator: creator ? { id: creator.id, name: creator.name } : null,
+          creator: creator ? { id: creator.id, name: creator.name, profilePicture: creator.profilePicture } : null,
         };
       })
     );
@@ -219,7 +293,7 @@ router.get("/jenjang/:jenjang", async (req, res) => {
         const creator = await User.findOne({ id: post.creator }).lean();
         return {
           ...post,
-          creator: creator ? { id: creator.id, name: creator.name } : null,
+          creator: creator ? { id: creator.id, name: creator.name, profilePicture: creator.profilePicture } : null,
         };
       })
     );
@@ -297,7 +371,7 @@ router.put("/:id", verifyToken, uploadPost.single("image"), async (req, res) => 
       // Optional: Hapus foto lama
       const oldPost = await Post.findOne({ id: req.params.id });
       if (oldPost.image) {
-        const oldImagePath = path.join(__dirname, "..", oldPost.image);
+        const oldImagePath = join(__dirname, "..", oldPost.image);
         if (fs.existsSync(oldImagePath)) {
           fs.unlinkSync(oldImagePath);
         }
@@ -556,6 +630,118 @@ router.get("/:postId/followers", verifyToken, async (req, res) => {
       success: false,
       message: "Gagal mengambil daftar peserta",
       error: error.message,
+    });
+  }
+});
+
+// Track post view
+router.post("/:postId/view", async (req, res) => {
+  try {
+    const { postId } = req.params;
+    
+    // Check if post exists
+    const post = await Post.findOne({ id: postId });
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: "Post not found"
+      });
+    }
+    
+    // Get current date info
+    const now = new Date();
+    const month = now.toLocaleString('default', { month: 'short' });
+    const year = now.getFullYear();
+    
+    // Find or create engagement record
+    let engagement = await Engagement.findOne({ 
+      postId,
+      month,
+      year
+    });
+    
+    if (engagement) {
+      // Update existing record
+      engagement.views += 1;
+      await engagement.save();
+    } else {
+      // Create new record
+      engagement = new Engagement({
+        postId,
+        month,
+        year,
+        views: 1,
+        comments: 0
+      });
+      await engagement.save();
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: "View recorded successfully"
+    });
+  } catch (error) {
+    console.error("Error recording view:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error recording view",
+      error: error.message
+    });
+  }
+});
+
+// Track post comment
+router.post("/:postId/comment", async (req, res) => {
+  try {
+    const { postId } = req.params;
+    
+    // Check if post exists
+    const post = await Post.findOne({ id: postId });
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: "Post not found"
+      });
+    }
+    
+    // Get current date info
+    const now = new Date();
+    const month = now.toLocaleString('default', { month: 'short' });
+    const year = now.getFullYear();
+    
+    // Find or create engagement record
+    let engagement = await Engagement.findOne({ 
+      postId,
+      month,
+      year
+    });
+    
+    if (engagement) {
+      // Update existing record
+      engagement.comments += 1;
+      await engagement.save();
+    } else {
+      // Create new record
+      engagement = new Engagement({
+        postId,
+        month,
+        year,
+        views: 0,
+        comments: 1
+      });
+      await engagement.save();
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: "Comment recorded successfully"
+    });
+  } catch (error) {
+    console.error("Error recording comment:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error recording comment",
+      error: error.message
     });
   }
 });

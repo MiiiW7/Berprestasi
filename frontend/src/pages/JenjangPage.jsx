@@ -50,7 +50,7 @@ const JenjangPage = () => {
       <div className="min-h-screen bg-gray-100">
         <div className="container mx-auto px-4 py-8">
           <h1 className="text-xl font-bold mb-6">
-            Lomba Kategori: {jenjang}
+            Lomba Jenjang: {jenjang}
           </h1>
           <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:w-[400px] md:w-[800px] lg:w-[800px] xl:w-[1000px]">
             {posts.map((post) => (
@@ -64,6 +64,7 @@ const JenjangPage = () => {
                 jenjangs={post.jenjangs}
                 pelaksanaan={post.pelaksanaan}
                 creatorName={post.creator?.name}
+                profilePicture={post.creator?.profilePicture || '/default-avatar.png'} // Tambahkan fallback
               />
             ))}
           </div>

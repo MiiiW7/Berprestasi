@@ -1,11 +1,16 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react/prop-types */
 import { createContext, useState, useContext, useEffect, useCallback } from "react";
-import axios from "axios";
+import api from "../utils/axios"; // Gunakan axios instance yang sudah dikonfigurasi
 
 const AuthContext = createContext(null);
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:9000";
+// Mode maintenance - aktifkan jika backend mengalami masalah
+const MAINTENANCE_MODE = false; // Ubah ke true untuk mengaktifkan mode maintenance
+const DEMO_USERS = [
+  { email: "demo@example.com", password: "demo123", role: "user", name: "Demo User" },
+  { email: "admin@example.com", password: "admin123", role: "admin", name: "Demo Admin" }
+];
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -17,7 +22,8 @@ export const AuthProvider = ({ children }) => {
     const loadUserData = async () => {
       if (token) {
         try {
-          const response = await axios.get('http://localhost:9000/user/profile', {
+          // Gunakan axios instance dari utils/axios.js
+          const response = await api.get('/user/profile', {
             headers: {
               Authorization: `Bearer ${token}`
             }
@@ -38,24 +44,40 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(async () => {
     try {
+      const isAdmin = localStorage.getItem("isAdmin") === "true";
+      
       if (token) {
-        await axios.post(
-          `${API_URL}/user/auth/logout`,
-          {},
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        if (isAdmin) {
+          // Admin logout - just clear local storage, no need for backend call
+          console.log("Admin logout detected");
+        } else {
+          // Regular user logout
+          await api.post(
+            "/user/auth/logout",
+            {},
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+        }
       }
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
+      // Clear all auth data
       localStorage.removeItem("token");
+      localStorage.removeItem("isAdmin");
       setToken(null);
       setUser(null);
       setError(null);
+      
+      // Redirect to frontend login if coming from admin dashboard
+      const currentUrl = window.location.href;
+      if (currentUrl.includes("admin") || currentUrl.includes("3000")) {
+        window.location.href = window.location.origin + "/login";
+      }
     }
   }, [token]);
 
@@ -66,14 +88,38 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      const response = await axios.get(`${API_URL}/user/profile`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const isAdmin = localStorage.getItem("isAdmin") === "true";
+      
+      if (isAdmin) {
+        // Check with admin verify endpoint
+        try {
+          const response = await api.get("/admin/dashboard/verify", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
 
-      setUser(response.data.data);
-      setError(null);
+          if (response.data.success) {
+            setUser({...response.data.admin, isAdmin: true});
+            setError(null);
+          } else {
+            throw new Error("Admin verification failed");
+          }
+        } catch (adminError) {
+          console.error("Admin auth check failed:", adminError);
+          logout();
+        }
+      } else {
+        // Regular user verification
+        const response = await api.get("/user/profile", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        setUser(response.data.data);
+        setError(null);
+      }
     } catch (error) {
       console.error("Auth check failed:", error);
       logout();
@@ -89,27 +135,135 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     setLoading(true);
     try {
-      const response = await axios.post(
-        `${API_URL}/user/auth/login`,
-        credentials,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
+      // Jika dalam mode maintenance, gunakan login demo
+      if (MAINTENANCE_MODE) {
+        console.log("MAINTENANCE MODE: Using demo login");
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulasi delay
+        
+        const demoUser = DEMO_USERS.find(user => 
+          user.email === credentials.email && user.password === credentials.password
+        );
+        
+        if (!demoUser) {
+          throw new Error("Email atau password salah (Demo Mode)");
         }
-      );
-  
-      const { token, data } = response.data;
-  
-      if (!token || !data) {
-        throw new Error("Invalid response from server");
+        
+        const isAdmin = demoUser.role === 'admin';
+        
+        // Simulasi respons dari backend
+        if (isAdmin) {
+          localStorage.setItem("token", "demo-admin-token");
+          localStorage.setItem("isAdmin", "true");
+          setToken("demo-admin-token");
+          setUser({...demoUser, isAdmin: true});
+          setError(null);
+          
+          console.log("DEMO: Admin login detected, redirecting to admin dashboard...");
+          alert("DEMO MODE: Admin login berhasil. Dalam mode produksi, Anda akan dialihkan ke dashboard admin.");
+          
+          return { ...demoUser, isAdmin: true };
+        } else {
+          localStorage.setItem("token", "demo-user-token");
+          localStorage.removeItem("isAdmin");
+          setToken("demo-user-token");
+          setUser(demoUser);
+          setError(null);
+          return demoUser;
+        }
+      }
+      
+      // Kode login normal jika tidak dalam mode maintenance
+      // Try regular user login first
+      let response;
+      let isAdmin = false;
+      let loginError = null;
+      
+      // Fungsi helper untuk pengecualian jika terjadi timeout
+      const tryLoginEndpoint = async (endpoint, creds, isAdminLogin = false) => {
+        try {
+          console.log(`Attempting ${isAdminLogin ? 'admin' : 'user'} login to ${endpoint}`);
+          const resp = await api.post(
+            endpoint,
+            creds,
+            {
+              headers: {
+                "Content-Type": "application/json",
+              },
+              timeout: 30000, // 30s timeout untuk login khususnya
+            }
+          );
+          return { success: true, response: resp, error: null };
+        } catch (err) {
+          console.error(`${isAdminLogin ? 'Admin' : 'User'} login error:`, err.message);
+          return { success: false, response: null, error: err };
+        }
+      };
+      
+      // Coba login user
+      const userLoginResult = await tryLoginEndpoint("/user/auth/login", credentials);
+      
+      if (userLoginResult.success) {
+        response = userLoginResult.response;
+        
+        // Check if this is an admin user from regular login
+        if (response.data.data && response.data.data.role === "admin") {
+          isAdmin = true;
+        }
+      } else {
+        loginError = userLoginResult.error;
+        
+        // Jika login user gagal, coba login admin
+        const adminLoginResult = await tryLoginEndpoint("/admin/dashboard/login", credentials, true);
+        
+        if (adminLoginResult.success) {
+          response = adminLoginResult.response;
+          isAdmin = true;
+          loginError = null;
+        } else {
+          // Kedua login gagal
+          throw loginError || adminLoginResult.error;
+        }
       }
   
-      localStorage.setItem("token", token);
-      setToken(token);
-      setUser(data);
-      setError(null);
-      return data;
+      // Handle response based on whether it's admin or regular user
+      if (isAdmin) {
+        const { token, admin } = response.data.admin ? response.data : { token: response.data.token, admin: response.data.data };
+  
+        if (!token) {
+          throw new Error("Invalid response from server");
+        }
+  
+        localStorage.setItem("token", token);
+        localStorage.setItem("isAdmin", "true");
+        setToken(token);
+        setUser({...admin, isAdmin: true});
+        setError(null);
+        
+        // Redirect to admin dashboard immediately with proper URL
+        console.log("Admin login detected, redirecting to admin dashboard...");
+        
+        // Use better URL detection for redirects
+        const isProd = window.location.hostname !== 'localhost';
+        const adminDashboardUrl = isProd 
+          ? 'https://berprestasi-admin.vercel.app'  // Update this with your actual admin URL
+          : 'http://localhost:3000';
+          
+        window.location.href = adminDashboardUrl;
+        return { ...admin, isAdmin: true };
+      } else {
+        const { token, data } = response.data;
+  
+        if (!token || !data) {
+          throw new Error("Invalid response from server");
+        }
+  
+        localStorage.setItem("token", token);
+        localStorage.removeItem("isAdmin");
+        setToken(token);
+        setUser(data);
+        setError(null);
+        return data;
+      }
     } catch (error) {
       console.error("Login error:", error.response || error);
       const errorMessage = error.response?.data?.message || "Login failed";
@@ -126,8 +280,8 @@ export const AuthProvider = ({ children }) => {
         throw new Error("No token available");
       }
 
-      const response = await axios.put(
-        `${API_URL}/user/profile`,
+      const response = await api.put(
+        "/user/profile",
         userData,
         {
           headers: {
@@ -150,7 +304,7 @@ export const AuthProvider = ({ children }) => {
     try {
       if (!token) return false;
 
-      const response = await axios.get(`${API_URL}/user/auth/verify`, {
+      const response = await api.get("/user/auth/verify", {
         headers: {
           Authorization: `Bearer ${token}`,
         },

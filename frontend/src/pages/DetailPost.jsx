@@ -24,29 +24,21 @@ const DetailPost = () => {
     const fetchPostDetail = async () => {
       try {
         setIsLoading(true);
-
-        // Fetch post details
         const response = await axios.get(`${BACKEND_URL}/post/${id}`);
-
         if (response.data.success) {
-          setPost(response.data.data);
-          console.log("Post details:", response.data.data);
-
-          // If user is logged in, check if they're following this post
-          if (user && token) {
-            const followedResponse = await axios.get(
-              `${BACKEND_URL}/user/followed-posts`,
-              {
-                headers: { Authorization: `Bearer ${token}` },
-              }
-            );
-            const followedPosts = followedResponse.data.data;
-            setIsFollowed(followedPosts.some((p) => p.id === id));
-          }
+          const postData = response.data.data;
+          // Add follower count to post data
+          postData.followersCount = postData.followers ? postData.followers.length : 0;
+          setPost(postData);
+          setIsFollowed(
+            user && postData.followers && postData.followers.includes(user.id)
+          );
         }
       } catch (err) {
-        console.error("Error details:", err.response?.data || err.message);
-        setError(err.response?.data?.message || "Error fetching post details");
+        console.error("Error fetching post details:", err);
+        setError(
+          err.response?.data?.message || "Failed to load post details"
+        );
       } finally {
         setIsLoading(false);
       }
@@ -88,40 +80,40 @@ const DetailPost = () => {
     if (imagePath.startsWith("http")) return imagePath;
     return `${BACKEND_URL}${imagePath}`;
   };
-  
-const handleFollow = async () => {
-  if (!user) {
-    window.location.href = "/login";
-    return;
-  }
 
-  try {
-    const endpoint = isFollowed ? "unfollow" : "follow";
-    const response = await axios.post(
-      `${BACKEND_URL}/post/${id}/${endpoint}`,
-      {},
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    
-    // Gunakan response dari backend
-    if (response.data.success) {
-      setIsFollowed(!isFollowed);
-      // Optional: Tampilkan pesan sukses
-      alert(response.data.message);
+  const handleFollow = async () => {
+    if (!user) {
+      window.location.href = "/login";
+      return;
     }
-  } catch (error) {
-    console.error("Detailed error following/unfollowing post:", error.response);
-    
-    // Tampilkan pesan error dari backend atau pesan default
-    const errorMessage = 
-      error.response?.data?.message || 
-      "Gagal mengikuti/berhenti mengikuti lomba. Silakan coba lagi.";
-    
-    alert(errorMessage);
-  }
-};
+
+    try {
+      const endpoint = isFollowed ? "unfollow" : "follow";
+      const response = await axios.post(
+        `${BACKEND_URL}/post/${id}/${endpoint}`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      // Gunakan response dari backend
+      if (response.data.success) {
+        setIsFollowed(!isFollowed);
+        // Optional: Tampilkan pesan sukses
+        alert(response.data.message);
+      }
+    } catch (error) {
+      console.error("Detailed error following/unfollowing post:", error.response);
+
+      // Tampilkan pesan error dari backend atau pesan default
+      const errorMessage =
+        error.response?.data?.message ||
+        "Gagal mengikuti/berhenti mengikuti lomba. Silakan coba lagi.";
+
+      alert(errorMessage);
+    }
+  };
 
   const handleBack = () => {
     navigate(-1); // Kembali ke halaman sebelumnya
@@ -129,190 +121,273 @@ const handleFollow = async () => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen bg-[#5b83c2]/5">
         <Navbar />
-        <div className="container mx-auto p-4 flex justify-center items-center">
-          <div className="text-xl">Loading...</div>
+        <div className="container mx-auto p-4 flex justify-center items-center flex-grow">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#5b83c2] border-t-transparent"></div>
+            <p className="text-[#1d305f] font-medium">Memuat detail lomba...</p>
+          </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen bg-[#5b83c2]/5">
         <Navbar />
         <div className="container mx-auto p-4">
           <button
             onClick={handleBack}
-            className="inline-block mb-4 text-blue-500 hover:text-blue-700"
+            className="inline-flex items-center text-[#1d305f] hover:text-[#5b83c2] transition-colors mb-6"
           >
-            &larr; Kembali
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+            Kembali
           </button>
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            Error: {error}
+          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-r">
+            <p className="font-medium">Terjadi kesalahan</p>
+            <p className="text-sm">{error}</p>
           </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   if (!post) {
     return (
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen bg-[#5b83c2]/5">
         <Navbar />
         <div className="container mx-auto p-4">
-          <Link
-            to="/"
-            className="inline-block mb-4 text-blue-500 hover:text-blue-700"
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center text-[#1d305f] hover:text-[#5b83c2] transition-colors mb-6"
           >
-            &larr; Kembali
-          </Link>
-          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
-            Post not found
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+            Kembali
+          </button>
+          <div className="bg-yellow-50 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-r">
+            <p className="font-medium">Lomba tidak ditemukan</p>
+            <p className="text-sm">Lomba yang Anda cari mungkin telah dihapus atau tidak tersedia.</p>
           </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="flex flex-col min-h-screen bg-[#5b83c2]/5">
       <Navbar />
-      <div className="container mx-auto p-4 w-[400px] sm:w-[600px] md:w-[800px] lg:w-[1100px]">
-        <button
-          onClick={handleBack}
-          className="inline-block mb-4 text-blue-500 hover:text-blue-700"
-        >
-          &larr; Kembali
-        </button>
-        <div className="justify-items-center bg-white rounded-xl shadow-md border border-gray-100 md:flex lg:flex xl:flex ">
-          <div className="relative w-1/2">
-            <img
-              src={getImageUrl(post.image)}
-              alt={post.title}
-              className="w-full h-full object-contain rounded-xl"
-              onError={(e) => {
-                e.target.src = "/placeholder-image.jpg";
-                console.log("Error loading image:", post.image);
-              }}
-            />
-          </div>
-          <div className="bg-white shadow-lg rounded-lg w-full">
-            <div className="p-4 h-full flex flex-col">
-              <div>
-                <h1 className="text-3xl font-bold mb-4">{post.title}</h1>
-                <p className="text-gray-700 mb-4">{post.description}</p>
-                <a className="text-gray-700 mt-4">Link Pendaftaran : </a>
-                <a href={post.link} target="_blank" className="text-gray-700 mb-4 hover:text-blue-400">{post.link}</a>
+      <div className="w-full px-0 md:container md:mx-auto md:px-2 py-4 md:max-w-7xl">
+        <div className="bg-white shadow-lg overflow-hidden">
+          <div className="grid md:grid-cols-3 gap-4 md:gap-6 p-2 md:p-4">
+            {/* Image Section - Fixed on the left */}
+            <div className="relative md:col-span-1">
+              <div className="md:sticky md:top-20 md:h-[calc(100vh-120px)]">
+                <div className="h-full rounded-lg overflow-hidden bg-gray-100">
+                  <img
+                    src={getImageUrl(post.image)}
+                    alt={post.title}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.target.src = "/placeholder-image.jpg";
+                    }}
+                  />
+                </div>
               </div>
-              <div className="mt-auto">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 my-4 py-auto">
-                  {Array.isArray(post.categories)
-                    ? post.categories.map((category, index) => (
-                        <div
-                          key={index}
-                          className="bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700"
-                        >
-                          {category}
-                        </div>
-                      ))
-                    : post.category && <div>{post.category}</div>}
-                </div>
-                {/* Jenjang */}
+            </div>
+
+            {/* Content Section - Scrollable */}
+            <div className="flex flex-col md:col-span-2 h-full">
+              {/* Scrollable content */}
+              <div className="md:max-h-[calc(100vh-220px)] md:overflow-y-auto">
                 <div className="mb-4">
-                  <h3 className="font-semibold text-lg mb-2">Jenjang</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {post.jenjangs.map((jenjang, index) => (
-                      <span
-                        key={index}
-                        className="bg-yellow-200 px-3 py-1 rounded-full text-sm"
-                      >
-                        {jenjang}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tambahkan informasi tanggal dan status */}
-                <div className="mt-4 flex justify-between items-center">
-                  <div>
-                    <p className="text-gray-600">
-                      <strong>Tanggal Pelaksanaan:</strong>{" "}
+                  <h1 className="text-xl md:text-2xl font-bold text-[#1d305f] mb-2">
+                    {post.title}
+                  </h1>
+                  <p className="text-[#bfbebf] text-sm mb-3">
+                    Diposting oleh {post.creator?.name || "Unknown"}
+                  </p>
+                  <div className="flex items-center space-x-4 text-sm text-[#5b83c2]">
+                    <span className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
                       {formatTanggal(post.pelaksanaan)}
-                    </p>
+                    </span>
+                    {/* Show follower count for everyone, but restrict viewing the list */}
+                    {user && (user.role === "admin" || user.role === "penyelenggara") ? (
+                      <button
+                        onClick={() => {
+                          fetchFollowers();
+                          setShowFollowers(true);
+                        }}
+                        className="flex items-center hover:text-[#1d305f] transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        {post.followersCount || 0} Peserta
+                      </button>
+                    ) : (
+                      <div className="flex items-center text-[#5b83c2]">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        {post.followersCount || 0} Peserta
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <span className="text-sm text-gray-500">
-                      Status: {post.status}
-                </span>
+                <div className="prose prose-sm max-w-none mb-6">
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-[#1d305f] mb-1">Deskripsi Lomba</h3>
+                      <p className="text-gray-600 text-sm whitespace-pre-line">{post.description}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-[#1d305f] mb-1">Kategori</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {post.categories.map((category, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#5b83c2]/10 text-[#1d305f]"
+                          >
+                            {category}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-[#1d305f] mb-1">Jenjang</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {post.jenjangs.map((jenjang, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#fdd813]/20 text-[#1d305f]"
+                          >
+                            {jenjang}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-[#1d305f] mb-1">Link Detail Lomba</h3>
+                      <a
+                        href={post.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#5b83c2] hover:text-[#1d305f] transition-colors"
+                      >
+                        {post.link}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-                <div>
-                  <span className="text-sm text-gray-500">
-                    By: {post.creator?.name || "Unknown"}
-                  </span>
+              {/* Fixed follow/unfollow button */}
+              {user && user.role === "pendaftar" && (
+                <div className="mt-auto pt-4 md:sticky md:bottom-0 bg-white">
+                  <button
+                    onClick={handleFollow}
+                    className={`w-full py-2.5 px-4 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-2
+                      ${isFollowed
+                        ? 'bg-red-500 text-white hover:bg-red-600'
+                        : 'bg-[#fdd813] text-[#1d305f] hover:bg-yellow-400'
+                      }`}
+                  >
+                    {isFollowed ? (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                        <span>Berhenti Mengikuti</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                        </svg>
+                        <span>Ikuti Lomba</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Followers Modal */}
+        {showFollowers && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-hidden">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold text-[#1d305f]">Daftar Peserta</h3>
+                  <button
+                    onClick={() => setShowFollowers(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="overflow-y-auto max-h-[60vh]">
+                  {followers.length > 0 ? (
+                    <div className="space-y-4">
+                      {followers.map((follower) => (
+                        <div key={follower.id} className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg">
+                          <img
+                            src={getImageUrl(follower.profilePicture) || "/default-avatar.png"}
+                            alt={follower.name}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                          <div>
+                            <p className="font-medium text-[#1d305f]">{follower.name}</p>
+                            <p className="text-sm text-[#bfbebf]">{follower.email}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center text-[#bfbebf] py-4">Belum ada peserta yang mengikuti lomba ini</p>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-        </div>
-        {user && user.role === "pendaftar" && (
-          <button
-            onClick={handleFollow}
-            className={`mt-4 px-6 py-2 rounded-full ${
-              isFollowed
-                ? "bg-red-500 text-white hover:bg-red-600"
-                : "bg-yellow-500 text-white hover:bg-yellow-600"
-            }`}
+        )}
+        <button
+          onClick={handleBack}
+          className="mt-4 inline-flex items-center text-[#1d305f] hover:text-[#5b83c2] transition-colors"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 mr-2"
+            viewBox="0 0 20 20"
+            fill="currentColor"
           >
-            {isFollowed ? "Unfollow" : "Follow"}
-          </button>
-        )}
-
-        {/* Tambahkan section untuk followers jika user adalah penyelenggara */}
-        {user && user.role === 'penyelenggara' && (
-          <div className="mt-6">
-            <button 
-              onClick={() => {
-                fetchFollowers();
-                setShowFollowers(!showFollowers);
-              }}
-              className="bg-yellow-500 text-white px-4 py-2 rounded"
-            >
-              {showFollowers ? 'Sembunyikan' : 'Lihat Peserta'} 
-              <span className="ml-2 bg-white text-yellow-500 px-2 rounded-full">
-                {post.followers?.length || 0}
-              </span>
-            </button>
-
-            {showFollowers && (
-              <div className="mt-4 bg-white shadow rounded-lg p-4">
-                <h3 className="text-lg font-bold mb-4">Daftar Peserta</h3>
-                {followers.length === 0 ? (
-                  <p className="text-gray-500">Belum ada peserta</p>
-                ) : (
-                  <div className="space-y-2">
-                    {followers.map((follower) => (
-                      <div 
-                        key={follower.id} 
-                        className="border-b pb-2 last:border-b-0 flex justify-between items-center"
-                      >
-                        <div>
-                          <p className="font-semibold">{follower.name}</p>
-                          <p className="text-sm text-gray-500">{follower.email}</p>
-                          <p className="text-sm text-gray-500">{follower.nomor}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+            <path
+              fillRule="evenodd"
+              d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
+          Kembali
+        </button>
       </div>
-      <Footer />
+      <Footer className="w-full" />
     </div>
   );
 };

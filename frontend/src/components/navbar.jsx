@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import logo from "../assets/logo.png";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
@@ -9,6 +9,8 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [showJenjang, setshowJenjang] = useState(false);
+  const [showMobileCategories, setShowMobileCategories] = useState(false);
+  const [showMobileJenjang, setShowMobileJenjang] = useState(false);
   const [categoryTimeout, setCategoryTimeout] = useState(null);
   const [jenjangTimeout, setJenjangTimeout] = useState(null);
   const { user, logout, checkAuth, token } = useAuth();
@@ -17,6 +19,16 @@ const Navbar = () => {
     unreadPenyelenggaraNotifications,
     setUnreadPenyelenggaraNotifications,
   ] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // Navigate ke halaman search dengan query
+      navigate(`/search?query=${encodeURIComponent(searchQuery)}`);
+    }
+  };
 
   // Fungsi untuk fetch notifikasi umum
   const fetchUnreadNotificationsCount = async () => {
@@ -138,270 +150,381 @@ const Navbar = () => {
     <div className="bg-white sticky top-0 left-0 w-full z-50 shadow-sm py-1 text-sm">
       <nav className="flex justify-between items-center w-[92%] mx-auto">
         <div className="flex items-center">
-          <img src={logo} alt="Logo" width="45" className="mr-4" />
+          <Link to={user?.role === "penyelenggara" ? "/dashboard" : "/"}>
+            <img src={logo} alt="Logo" width="45" className="mr-4" />
+          </Link>
         </div>
-        <div className="fixed md:static md:min-h-fit min-h-[60vh] left-0 top-[-100%] md:w-auto w-full flex items-center px-5">
-          <ul className="flex md:flex-row flex-col md:items-center md:gap-[4vw] gap-8 ">
-            <li className="">
-              <Link to="/" className="hover:text-yellow-600">
-                Home
-              </Link>
-            </li>
-            {/* Kategori Dropdown */}
-            <li
-              className="relative"
-              onMouseEnter={handleMouseEnterCategories}
-              onMouseLeave={handleMouseLeaveCategories}
-            >
-              <button className="hover:text-yellow-600 focus:outline-none">
-                Kategori
-              </button>
-              {showCategories && (
-                <div
-                  className="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
-                  onMouseEnter={handleMouseEnterCategories} // Tetap buka saat hover di dropdown
-                  onMouseLeave={handleMouseLeaveCategories} // Tutup saat keluar dari dropdown
-                >
-                  <div className="py-1" role="menu">
-                    {categories.map((category) => (
-                      <Link
-                        key={category}
-                        to={`/kategori/${category}`}
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-yellow-100"
-                        role="menuitem"
-                        onClick={() => setShowCategories(false)}
-                      >
-                        {category}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </li>
 
-            {/* Jenjang Dropdown */}
-            <li
-              className="relative"
-              onMouseEnter={handleMouseEnterJenjang}
-              onMouseLeave={handleMouseLeaveJenjang}
-            >
-              <button className="hover:text-yellow-600 focus:outline-none">
-                Jenjang
+        {/* Search Bar - Only visible for non-penyelenggara users */}
+        {user && user.role !== "penyelenggara" && (
+          <form onSubmit={handleSearch} className="flex-1 max-w-xl mx-4">
+            <div className="flex items-center">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari lomba atau penyelenggara..."
+                className="w-full px-3 py-2 text-sm border rounded-l-md focus:outline-none focus:border-[#5b83c2]"
+              />
+              <button
+                type="submit"
+                className="bg-[#fdd813] text-[#1d305f] px-3 py-2 rounded-r-md hover:bg-yellow-400"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                </svg>
               </button>
-              {showJenjang && (
-                <div
-                  className="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
-                  onMouseEnter={handleMouseEnterJenjang} // Tetap buka saat hover di dropdown
-                  onMouseLeave={handleMouseLeaveJenjang} // Tutup saat keluar dari dropdown
-                >
-                  <div className="py-1" role="menu">
-                    {jenjangs.map((jenjang) => (
-                      <Link
-                        key={jenjang}
-                        to={`/jenjang/${jenjang}`}
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-yellow-100"
-                        role="menuitem"
-                        onClick={() => setshowJenjang(false)}
-                      >
-                        {jenjang}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </li>
-            <li className="">
-              <Link to="/Lomba" className="hover:text-yellow-600">
-                Lomba
-              </Link>
-            </li>
-            <li className="">
-              {/* Tambahkan link ke halaman notifikasi */}
-              {/* Notifikasi untuk pendaftar */}
-              {user && user.role === "pendaftar" && (
-                <li>
-                  <Link
-                    to="/notifications"
-                    className="relative p-2 rounded-full hover:bg-gray-100"
-                  >
-                    Pemberitahuan
-                    {unreadNotifications > 0 && (
-                      <span className="absolute top-0 right-0 bg-red-500 text-white rounded-full px-2 py-1 text-xs">
-                        {unreadNotifications}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              )}
+            </div>
+          </form>
+        )}
 
-              {/* Notifikasi untuk penyelenggara */}
-              {user && user.role === "penyelenggara" && (
-                <li>
-                  <Link
-                    to="/notifications-penyelenggara"
-                    className="relative p-2 rounded-full hover:bg-gray-100"
-                  >
-                    Pemberitahuan
-                    {unreadPenyelenggaraNotifications > 0 && (
-                      <span className="absolute top-0 right-0 bg-red-500 text-white rounded-full px-2 py-1 text-xs">
-                        {unreadPenyelenggaraNotifications}
-                      </span>
-                    )}
-                  </Link>
-                </li>
+        {/* Empty div to maintain centering for penyelenggara users */}
+        {user && user.role === "penyelenggara" && (
+          <div className="flex-1"></div>
+        )}
+
+        {/* Mobile menu button */}
+        <div className="relative md:hidden">
+          <button
+            onClick={toggleMenu}
+            className="text-[#1d305f] hover:text-[#5b83c2] focus:outline-none"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              {isOpen ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              ) : (
+              <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
               )}
-            </li>
-          </ul>
+            </svg>
+          </button>
+
+          {/* Mobile Menu Dropdown */}
+          {isOpen && (
+            <div className="absolute right-0 mt-2 w-64 rounded-lg bg-white shadow-lg py-2 border border-gray-100">
+              {user ? (
+                <>
+                  <div className="border-t border-gray-100">
+                    {user.role === "pendaftar" ? (
+                      <>
+                        <Link
+                          to="/"
+                          className="block px-4 py-2 text-[#1d305f] hover:bg-[#5b83c2]/10"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          Home
+                        </Link>
+
+                        {/* Categories Dropdown */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowMobileCategories(!showMobileCategories)}
+                            className="flex items-center justify-between w-full px-4 py-2 text-[#1d305f] hover:bg-[#5b83c2]/10"
+                          >
+                            <span>Kategori</span>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className={`h-4 w-4 transition-transform ${showMobileCategories ? 'rotate-180' : ''}`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {showMobileCategories && (
+                            <div className="bg-gray-50">
+                              {categories.map((category) => (
+                                <Link
+                                  key={category}
+                                  to={`/kategori/${category}`}
+                                  className="block px-8 py-2 text-sm text-[#1d305f] hover:bg-[#5b83c2]/10"
+                                  onClick={() => {
+                                    setShowMobileCategories(false);
+                                    setIsOpen(false);
+                                  }}
+                                >
+                                  {category}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Jenjang Dropdown */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowMobileJenjang(!showMobileJenjang)}
+                            className="flex items-center justify-between w-full px-4 py-2 text-[#1d305f] hover:bg-[#5b83c2]/10"
+                          >
+                            <span>Jenjang</span>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className={`h-4 w-4 transition-transform ${showMobileJenjang ? 'rotate-180' : ''}`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {showMobileJenjang && (
+                            <div className="bg-gray-50">
+                              {jenjangs.map((jenjang) => (
+                                <Link
+                                  key={jenjang}
+                                  to={`/jenjang/${jenjang}`}
+                                  className="block px-8 py-2 text-sm text-[#1d305f] hover:bg-[#5b83c2]/10"
+                                  onClick={() => {
+                                    setShowMobileJenjang(false);
+                                    setIsOpen(false);
+                                  }}
+                                >
+                                  {jenjang}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <Link
+                          to="/notifications"
+                          className="flex items-center justify-between px-4 py-2 text-[#1d305f] hover:bg-[#5b83c2]/10"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <span>Notifikasi</span>
+                          {unreadNotifications > 0 && (
+                            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                              {unreadNotifications}
+                            </span>
+                          )}
+                        </Link>
+                        <Link
+                          to="/profile"
+                          className="block px-4 py-2 text-[#1d305f] hover:bg-[#5b83c2]/10"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          Profile 
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        <Link
+                          to="/dashboard"
+                          className="flex items-center justify-between px-4 py-2 text-[#1d305f] hover:bg-[#5b83c2]/10"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <span>Dashboard</span>
+                        </Link>
+                        <Link
+                          to="/notifications-penyelenggara"
+                          className="flex items-center justify-between px-4 py-2 text-[#1d305f] hover:bg-[#5b83c2]/10"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <span>Notifikasi</span>
+                          {unreadPenyelenggaraNotifications > 0 && (
+                            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                              {unreadPenyelenggaraNotifications}
+                            </span>
+                          )}
+                        </Link>
+                        <Link
+                          to="/profile"
+                          className="block px-4 py-2 text-[#1d305f] hover:bg-[#5b83c2]/10"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          Profile
+                        </Link>
+                        <Link
+                          to="/create-post"
+                          className="block px-4 py-2 text-[#1d305f] hover:bg-[#5b83c2]/10"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          Buat Lomba
+                        </Link>
+                      </>
+                    )}
+                    <button
+                      onClick={() => {
+                        logout();
+                        setIsOpen(false);
+                      }}
+                      className="mx-auto w-[120px] block bg-[#1d305f] text-white px-3 py-1.5 rounded-md hover:bg-[#5b83c2] transition mt-2"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className="block px-4 py-2 text-[#1d305f] hover:bg-[#5b83c2]/10"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Masuk
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="block px-4 py-2 text-[#1d305f] hover:bg-[#5b83c2]/10"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Daftar
+                  </Link>
+                </>
+              )}
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          {user ? (
-            <>
-              {user.role === "penyelenggara" && (
+
+        {/* Desktop Menu */}
+        {user ? (
+          <div className="hidden md:flex items-center gap-4">
+            {user.role === "pendaftar" ? (
+              <>
+                <Link to="/" className="text-[#1d305f] hover:text-[#5b83c2]">
+                  Home
+                </Link>
+
+                <div
+                  className="relative"
+                  onMouseEnter={handleMouseEnterCategories}
+                  onMouseLeave={handleMouseLeaveCategories}
+                >
+                  <button className="text-[#1d305f] hover:text-[#5b83c2]">
+                    Kategori
+                  </button>
+                  {showCategories && (
+                    <div className="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+                      <div className="py-1">
+                        {categories.map((category) => (
+                          <Link
+                            key={category}
+                            to={`/kategori/${category}`}
+                            className="block px-4 py-2 text-sm text-[#1d305f] hover:bg-[#5b83c2]/10"
+                          >
+                            {category}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  className="relative"
+                  onMouseEnter={handleMouseEnterJenjang}
+                  onMouseLeave={handleMouseLeaveJenjang}
+                >
+                  <button className="text-[#1d305f] hover:text-[#5b83c2]">
+                    Jenjang
+                  </button>
+                  {showJenjang && (
+                    <div className="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+                      <div className="py-1">
+                        {jenjangs.map((jenjang) => (
+                          <Link
+                            key={jenjang}
+                            to={`/jenjang/${jenjang}`}
+                            className="block px-4 py-2 text-sm text-[#1d305f] hover:bg-[#5b83c2]/10"
+                          >
+                            {jenjang}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <Link
+                  to="/notifications"
+                  className="text-[#1d305f] hover:text-[#5b83c2] relative"
+                >
+                  Notifikasi
+                  {unreadNotifications > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                      {unreadNotifications}
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to="/profile"
+                  className="text-[#1d305f] hover:text-[#5b83c2]"
+                >
+                  Profile 
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="text-[#1d305f] hover:text-[#5b83c2]"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  to="/notifications-penyelenggara"
+                  className="text-[#1d305f] hover:text-[#5b83c2] relative"
+                >
+                  Notifikasi
+                  {unreadPenyelenggaraNotifications > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                      {unreadPenyelenggaraNotifications}
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to="/profile"
+                  className="text-[#1d305f] hover:text-[#5b83c2]"
+                >
+                  Profile
+                </Link>
                 <Link
                   to="/create-post"
-                  className="bg-yellow-200 text-yellow-500 px-5 py-2 rounded-full hover:bg-yellow-300"
+                  className="bg-[#1d305f] text-white px-3 py-1.5 rounded-md hover:bg-[#5b83c2] transition min-w-[80px]"
                 >
                   Buat Lomba
                 </Link>
-              )}
-              <Link
-                to="/profile"
-                className="bg-yellow-200 text-yellow-500 px-5 py-2 rounded-full hover:bg-yellow-300"
-              >
-                Profile
-              </Link>
-              <button
-                onClick={logout}
-                className="hidden md:inline-block bg-red-500 text-white px-5 py-2 rounded-full hover:bg-red-600"
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                to="/login"
-                className="bg-yellow-200 text-yellow-500 px-5 py-2 rounded-full hover:bg-yellow-300 inline-block text-center transition duration-300"
-              >
-                Sign in
-              </Link>
-              <Link
-                to="/register"
-                className="bg-yellow-400 text-white px-5 py-2 rounded-full hover:bg-yellow-200 inline-block text-center transition duration-300"
-              >
-                Sign Up
-              </Link>
-            </>
-          )}
-          <button onClick={toggleMenu} className="text-yellow-600 md:hidden">
-            {isOpen ? "✖" : "☰"}
-          </button>
-        </div>
-      </nav>
-
-      {isOpen && (
-        <div className="py-4 lg:hidden">
-          <div className="flex flex-col gap-6 items-center">
-            <Link to="/" className="w-80">
-              <button className="bg-yellow-300 w-full py-2 rounded-full">
-                Home
-              </button>
-            </Link>
-            <div className="w-80">
-              <button
-                className="bg-yellow-300 w-full py-2 rounded-full"
-                onClick={() => setShowCategories(!showCategories)}
-              >
-                Kategori
-              </button>
-              {showCategories && (
-                <div className="mt-2 bg-white rounded-md shadow-lg">
-                  {categories.map((category) => (
-                    <Link
-                      key={category}
-                      to={`/kategori/${category}`}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-yellow-100"
-                      onClick={() => {
-                        setShowCategories(false);
-                        setIsOpen(false);
-                      }}
-                    >
-                      {category}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="w-80">
-              <button
-                className="bg-yellow-300 w-full py-2 rounded-full"
-                onClick={() => setshowJenjang(!showJenjang)}
-              >
-                Jenjang
-              </button>
-              {showJenjang && (
-                <div className="mt-2 bg-white rounded-md shadow-lg">
-                  {jenjangs.map((jenjang) => (
-                    <Link
-                      key={jenjang}
-                      to={`/kategori/${jenjang}`}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-yellow-100"
-                      onClick={() => {
-                        setshowJenjang(false);
-                        setIsOpen(false);
-                      }}
-                    >
-                      {jenjang}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-            <Link to="/lomba" className="w-80">
-              <button className="bg-yellow-300 w-full py-2 rounded-full">
-                Lomba
-              </button>
-            </Link>
-            {/* Notifikasi untuk pendaftar */}
-            {user && user.role === "pendaftar" && (
-              <Link to="/notifications" className="">
-                <button className="bg-yellow-300  py-2 rounded-full w-80">
-                  Pemberitahuan
-                  {unreadNotifications > 0 && (
-                    <button className="absolute top-0 right-0 bg-red-500 text-white rounded-full px-2 py-1 text-xs">
-                      {unreadNotifications}
-                    </button>
-                  )}
-                </button>
-              </Link>
-            )}
-
-            {/* Notifikasi untuk penyelenggara */}
-            {user && user.role === "penyelenggara" && (
-              <Link to="/notifications-penyelenggara" className="">
-                <button className="bg-yellow-300  py-2 rounded-full w-80">
-                  Pemberitahuan
-                  {unreadPenyelenggaraNotifications > 0 && (
-                    <button className="absolute top-0 right-0 bg-red-500 text-white rounded-full px-2 py-1 text-xs">
-                      {unreadPenyelenggaraNotifications}
-                    </button>
-                  )}
-                </button>
-              </Link>
-            )}
-            {user && (
-              <>
-                <button
-                  onClick={logout}
-                  className="bg-red-500 text-white w-80 py-2 rounded-full"
-                >
-                  Logout
-                </button>
               </>
             )}
+            <button
+              onClick={logout}
+              className="bg-[#1d305f] text-white px-3 py-1.5 rounded-md hover:bg-[#5b83c2] transition min-w-[80px]"
+            >
+              Logout
+            </button>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="hidden md:flex items-center gap-4">
+            <Link
+              to="/login"
+              className="text-[#1d305f] hover:text-[#5b83c2]"
+            >
+              Masuk
+            </Link>
+            <Link
+              to="/register"
+              className="bg-[#1d305f] text-white px-4 py-2 rounded-md hover:bg-[#5b83c2] transition"
+            >
+              Daftar
+            </Link>
+          </div>
+        )}
+      </nav>
     </div>
   );
 };

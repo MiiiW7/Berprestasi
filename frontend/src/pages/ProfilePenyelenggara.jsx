@@ -2,10 +2,12 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/navbar";
 import Footer from "../components/Footer";
 
 const ProfilePenyelenggara = () => {
+  const navigate = useNavigate();
   const { user, updateProfile, token } = useAuth();
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -168,267 +170,283 @@ const ProfilePenyelenggara = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-[#5b83c2]/5">
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
-        {/* Profile Section */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h1 className="text-2xl font-bold mb-4">Profile Penyelenggara</h1>
-          
-          {/* Foto Profil */}
-            <div className="relative">
-              <input 
-                type="file" 
-                id="profilePicture"
-                name="profilePicture"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
-                disabled={!isEditing}
-              />
-              <label 
-                htmlFor={isEditing ? "profilePicture" : undefined} 
-                className={`cursor-${isEditing ? 'pointer' : 'default'}`}
-              >
-                <img 
-                  src={getProfilePictureUrl()} 
-                  alt="Foto Profil" 
-                  className={`w-32 h-32 rounded-full object-cover border-4 ${
-                    isEditing 
-                      ? 'border-yellow-500 hover:opacity-75' 
-                      : 'border-gray-300'
-                  }`}
+      <div className="container mx-auto px-4 sm:px-6 py-8">
+        {/* Back Navigation */}
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center text-[#1d305f] hover:text-[#5b83c2] mb-6"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 mr-2"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
+          Kembali
+        </button>
+
+        {/* Profile Card */}
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
+          <div className="flex flex-col md:flex-row">
+            {/* Left Section - Profile Picture */}
+            <div className="w-full md:w-1/3 p-6 md:p-8 bg-gradient-to-br from-[#1d305f] to-[#5b83c2] flex flex-col items-center justify-center">
+              <div className="relative group">
+                <input
+                  type="file"
+                  id="profilePicture"
+                  name="profilePicture"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                  disabled={!isEditing}
                 />
-                {isEditing && (
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <span className="text-white bg-black bg-opacity-50 px-2 py-1 rounded-md">
-                      Ubah Foto
-                    </span>
+                <label
+                  htmlFor={isEditing ? "profilePicture" : undefined}
+                  className="cursor-pointer block"
+                >
+                  <div className="relative">
+                    <img
+                      src={getProfilePictureUrl()}
+                      alt="Profile"
+                      className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-white shadow-lg"
+                    />
+                    {isEditing && (
+                      <div className="absolute inset-0 rounded-full bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-white text-sm">Ubah Foto</span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </label>
+                </label>
+              </div>
+              <h2 className="mt-4 text-xl md:text-2xl font-bold text-white text-center">{user.name}</h2>
+              <p className="text-[#fdd813] mt-1">Penyelenggara</p>
             </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-gray-600">Nama:</p>
-              <p className="font-semibold">{user.name}</p>
-            </div>
-            <div>
-              <p className="text-gray-600">Email:</p>
-              <p className="font-semibold">{user.email}</p>
-            </div>
-            <div>
-              <p className="text-gray-600">Nomor Telepon:</p>
-              <p className="font-semibold">{user.nomor}</p>
+            {/* Right Section - Profile Info */}
+            <div className="w-full md:w-2/3 p-6 md:p-8">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-[#1d305f] mb-4">Informasi Profil</h3>
+                {isEditing ? (
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5b83c2] focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5b83c2] focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nomor Telepon</label>
+                      <input
+                        type="tel"
+                        name="nomor"
+                        value={formData.nomor}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5b83c2] focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditing(false);
+                          setPreviewImage(null);
+                          setProfilePicture(null);
+                        }}
+                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-[#1d305f] text-white rounded-lg hover:bg-[#5b83c2] transition-colors"
+                      >
+                        Simpan
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Email</p>
+                        <p className="font-medium text-[#1d305f]">{user.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Nomor Telepon</p>
+                        <p className="font-medium text-[#1d305f]">{user.nomor || "-"}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="mt-4 w-full sm:w-auto px-4 py-2 bg-[#fdd813] text-[#1d305f] rounded-lg hover:bg-yellow-400 transition-colors inline-flex items-center justify-center sm:justify-start"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                      </svg>
+                      Edit Profil
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Stats Section */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold text-[#1d305f] mb-4">Statistik</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="bg-[#5b83c2]/5 p-4 rounded-lg">
+                    <p className="text-2xl font-bold text-[#1d305f]">{posts.length}</p>
+                    <p className="text-sm text-gray-500">Total Lomba</p>
+                  </div>
+                  <div className="bg-[#5b83c2]/5 p-4 rounded-lg">
+                    <p className="text-2xl font-bold text-[#1d305f]">
+                      {posts.filter(post => post.status === "Sedang Dilaksanakan").length}
+                    </p>
+                    <p className="text-sm text-gray-500">Lomba Aktif</p>
+                  </div>
+                  <div className="bg-[#5b83c2]/5 p-4 rounded-lg">
+                    <p className="text-2xl font-bold text-[#1d305f]">
+                      {posts.filter(post => post.status === "Telah Dilaksanakan").length}
+                    </p>
+                    <p className="text-sm text-gray-500">Lomba Selesai</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {isEditing ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-gray-700 mb-2">Nama</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded-md"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-gray-700 mb-2">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded-md"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-gray-700 mb-2">Nomor Telepon</label>
-                <input
-                  type="tel"
-                  name="nomor"
-                  value={formData.nomor}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded-md"
-                  required
-                />
-              </div>
-              <div className="flex justify-end space-x-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditing(false);
-                    // Reset preview dan foto yang dipilih
-                    setPreviewImage(null);
-                    setProfilePicture(null);
-                  }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
-                >
-                  Simpan
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="px-4 py-2 mb-4 bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
-                >
-                  Edit Profil
-                </button>
-              </div>
-            </div>
-          )}
-
         {/* Posts Section */}
-        <div className="bg-white rounded-lg shadow-md p-6 ">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">
-              Daftar Lomba Yang Diselenggarakan
-            </h2>
-            <button
-              onClick={() => (window.location.href = "/create-post")}
-              className="bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600"
+        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0 mb-6">
+            <h2 className="text-xl font-bold text-[#1d305f]">Lomba Yang Diselenggarakan</h2>
+            <Link
+              to="/create-post"
+              className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 bg-[#1d305f] text-white rounded-lg hover:bg-[#5b83c2] transition-colors"
             >
-              Tambah Lomba
-            </button>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              Buat Lomba Baru
+            </Link>
           </div>
 
-          {isLoading && (
-            <div className="text-center py-4">
-              <p>Loading...</p>
+          {isLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#5b83c2] border-t-transparent"></div>
             </div>
-          )}
-
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
+          ) : error ? (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+              <p className="text-red-700">{error}</p>
             </div>
-          )}
-
-          {!isLoading && !error && posts.length === 0 && (
-            <div className="text-center py-4 text-gray-500">
-              Belum ada lomba yang diselenggarakan
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:w-[500px] md:w-[700px] lg:w-[900px] xl:w-[1200px]">
-            {posts.map((post) => (
-              <div
-                key={post.id}
-                className="flex items-center border rounded-lg shadow-sm hover:shadow-md transition-shadow"
+          ) : posts.length === 0 ? (
+            <div className="text-center py-12">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <p className="text-gray-500 mb-4">Anda belum membuat lomba apapun</p>
+              <Link
+                to="/create-post"
+                className="inline-flex items-center px-4 py-2 bg-[#1d305f] text-white rounded-lg hover:bg-[#5b83c2] transition-colors"
               >
-                <div className="w-1/2">
-                  <img
-                    src={getImageUrl(post.image)}
-                    alt={post.title}
-                    className="relative h-full object-contain rounded-lg"
-                  />
-                </div>
-                <div className="flex flex-col p-4 w-1/2 h-full">
-                  <div className="mb-4">
-                    <h3 className="font-bold text-lg mb-2">{post.title}</h3>
-                    <p className="text-gray-700 text-xs line-clamp-3 mb-2">
-                      {post.description.length > 100
-                        ? `${post.description.substring(0, 100)}...`
-                        : post.description}
-                    </p>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+                Buat Lomba Pertama
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {posts.map((post) => (
+                <div key={post.id} className="bg-white border rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                  <div className="aspect-w-16 aspect-h-9">
+                    <img
+                      src={getImageUrl(post.image)}
+                      alt={post.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src = "/placeholder-image.jpg";
+                      }}
+                    />
                   </div>
-                  <div className="mt-auto">
-                    <div className="flex flex-wrap gap-2 mb-2 line-clamp-2">
-                      {Array.isArray(post.categories)
-                        ? post.categories.map((category, index) => (
-                            <span
-                              key={index}
-                              className=" bg-gray-200 px-2 py-1 rounded-full text-xs"
-                            >
-                              {category}
-                            </span>
-                          ))
-                        : post.category && (
-                            <span className="inline-block bg-gray-200 rounded-full text-sm font-semibold text-gray-700">
-                              {post.category}
-                            </span>
-                          )}
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {post.jenjangs?.map((jenjang, index) => (
+                  <div className="p-4">
+                    <h3 className="font-bold text-[#1d305f] mb-2 line-clamp-2">
+                      {post.title}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                      {post.description}
+                    </p>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {post.categories?.map((category, index) => (
                         <span
                           key={index}
-                          className="bg-yellow-200 px-2 py-1 rounded-full text-xs"
+                          className="inline-block bg-[#5b83c2]/10 text-[#1d305f] text-xs px-2 py-1 rounded-full"
                         >
-                          {" "}
-                          {jenjang}
+                          {category}
                         </span>
                       ))}
                     </div>
-                    <div className="text-xs mt-2">
-                      <a>
-                        Diikuti sebanyak: {post.followers?.length || 0} user
-                      </a>
-                    </div>
-                    <div className="mb-2">
-                      {/* Jika pelaksanaan adalah string tunggal */}
-                      {post.pelaksanaan && (
-                        <span className=" rounded-full text-xs">
-                          {new Date(post.pelaksanaan).toLocaleDateString(
-                            "id-ID",
-                            {
-                              day: "numeric",
-                              month: "long",
-                              year: "numeric",
+                    <div className="flex items-center justify-between text-sm">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        post.status === "Belum Dilaksanakan"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : post.status === "Sedang Dilaksanakan"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}>
+                        {post.status}
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <Link
+                          to={`/post/${post.id}`}
+                          className="text-[#5b83c2] hover:text-[#1d305f] font-medium"
+                        >
+                          Detail
+                        </Link>
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Apakah Anda yakin ingin menghapus lomba ini?')) {
+                              deletePost(post.id);
                             }
-                          )}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-sm text-gray-500 mb-2">
-                      Status: {post.status}
-                    </span>
-
-                    <div className="mt-4 flex justify-end gap-2">
-                      <button
-                        onClick={() =>
-                          (window.location.href = `/edit-post/${post.id}`)
-                        }
-                        className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              "Apakah Anda yakin ingin menghapus lomba ini?"
-                            )
-                          ) {
-                            deletePost(post.id);
-                          }
-                        }}
-                        className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
-                      >
-                        Hapus
-                      </button>
+                          }}
+                          className="text-red-500 hover:text-red-700"
+                          title="Hapus Lomba"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <Footer />

@@ -37,7 +37,7 @@ const CategoryPage = () => {
         setIsLoading(false);
       }
     };
-
+  
     fetchPosts();
   }, [category]);
 
@@ -64,6 +64,7 @@ const CategoryPage = () => {
                 jenjangs={post.jenjangs}
                 pelaksanaan={post.pelaksanaan}
                 creatorName={post.creator?.name}
+                profilePicture={post.creator?.profilePicture || '/default-avatar.png'} // Tambahkan fallback
               />
             ))}
           </div>

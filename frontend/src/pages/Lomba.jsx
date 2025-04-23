@@ -110,6 +110,7 @@ const Lomba = () => {
                 categories={post.categories}
                 jenjangs={post.jenjangs}
                 pelaksanaan={post.pelaksanaan}
+                profilePicture={post.creator?.profilePicture}
                 creatorName={post.creator?.name || "Unknown"}
               />
             ))}

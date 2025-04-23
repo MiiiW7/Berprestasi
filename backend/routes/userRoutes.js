@@ -7,8 +7,15 @@ import Notification from "../models/notification.js";
 import { User } from "../models/user.js";
 import { verifyToken } from "../middleware/auth.js";
 import { uploadProfile } from "../multer.js";
+import fs from "fs";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import path from "path";
 
 const router = express.Router();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // AUTH ROUTES
 // Register User
@@ -19,12 +26,38 @@ router.post(
     try {
       const { name, email, password, nomor, role } = req.body;
 
+      // Input validation
+      if (!name || !email || !password || !nomor) {
+        // If required fields are missing, return an error
+        if (req.file) {
+          try {
+            const filePath = path.join(__dirname, "..", req.file.path);
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+            }
+          } catch (fileError) {
+            console.error("Error deleting file:", fileError);
+          }
+        }
+        return res.status(400).json({
+          success: false,
+          message: "Semua kolom wajib diisi",
+        });
+      }
+
+      // Check for existing user
       const existingUser = await User.findOne({ email });
       if (existingUser) {
         // Hapus file yang baru diupload jika user sudah ada
         if (req.file) {
-          const filePath = path.join(__dirname, "..", req.file.path);
-          fs.unlinkSync(filePath);
+          try {
+            const filePath = path.join(__dirname, "..", req.file.path);
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+            }
+          } catch (fileError) {
+            console.error("Error deleting file:", fileError);
+          }
         }
         return res.status(400).json({
           success: false,
@@ -37,9 +70,10 @@ router.post(
       const hashedPassword = await bcrypt.hash(password, salt);
 
       // Siapkan data profile picture
-      const profilePicturePath = req.file
-        ? `/uploads/profiles/${req.file.filename}`
-        : "";
+      let profilePicturePath = "";
+      if (req.file) {
+        profilePicturePath = `/uploads/profiles/${req.file.filename}`;
+      }
 
       // Create new user
       const user = new User({
@@ -53,10 +87,37 @@ router.post(
 
       // Save user
       const savedUser = await user.save();
+      console.log("User saved successfully:", savedUser.id);
 
+      // Create notification for admin dashboard (wrapped in a separate try/catch)
+      // This won't fail the registration process if it fails
+      let notificationCreated = false;
+      try {
+        // Check if Notification model is available
+        if (typeof Notification === 'function') {
+          const newUserNotification = new Notification({
+            userId: savedUser.id,
+            message: `Pengguna baru terdaftar: ${savedUser.name}`,
+            type: 'general'
+          });
+          await newUserNotification.save();
+          notificationCreated = true;
+          console.log("Notification created for new user");
+        } else {
+          console.error("Notification model not available");
+        }
+      } catch (notifError) {
+        // Log the error but don't fail the registration
+        console.error("Error creating notification:", notifError);
+        console.error("Notification error name:", notifError.name);
+        console.error("Notification error message:", notifError.message);
+      }
+
+      // Return success response
       res.status(201).json({
         success: true,
         message: "Registrasi berhasil",
+        notificationCreated, // Let the client know if notification was created
         data: {
           id: savedUser.id,
           name: savedUser.name,
@@ -68,6 +129,22 @@ router.post(
       });
     } catch (error) {
       console.error("Registration error:", error);
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+      
+      // Try to clean up any uploaded files
+      if (req.file) {
+        try {
+          const filePath = path.join(__dirname, "..", req.file.path);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        } catch (fileError) {
+          console.error("Error deleting file:", fileError);
+        }
+      }
+      
+      // Send appropriate error response
       res.status(500).json({
         success: false,
         message: "Terjadi kesalahan saat registrasi",
@@ -198,6 +275,13 @@ router.put(
       // Cari user yang akan diupdate
       const user = await User.findOne({ id: req.user.id });
 
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User tidak ditemukan",
+        });
+      }
+
       // Siapkan data update
       const updateData = {
         name: req.body.name,
@@ -208,8 +292,10 @@ router.put(
       // Jika ada file baru diunggah
       if (req.file) {
         // Hapus foto profil lama jika ada (kecuali default)
-        if (user.profilePicture && 
-            user.profilePicture !== '/uploads/profiles/default-avatar.png') {
+        if (
+          user.profilePicture && 
+          user.profilePicture !== '/uploads/profiles/default-avatar.png'
+        ) {
           const oldImagePath = path.join(__dirname, "..", user.profilePicture);
           if (fs.existsSync(oldImagePath)) {
             fs.unlinkSync(oldImagePath);
@@ -241,7 +327,7 @@ router.put(
       });
     }
   }
-);
+)
 
 // Change Password
 router.put("/change-password", verifyToken, async (req, res) => {
@@ -291,7 +377,7 @@ router.get("/followed-posts", verifyToken, async (req, res) => {
         const creator = await User.findOne({ id: post.creator }).lean();
         return {
           ...post.toObject(),
-          creator: creator ? { id: creator.id, name: creator.name } : null,
+          creator: creator ? { id: creator.id, name: creator.name, profilePicture: creator.profilePicture } : null,
         };
       })
     );

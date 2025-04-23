@@ -21,7 +21,6 @@ const getCategoryColor = (category) => {
 const Post = ({
   id,
   title,
-  description,
   image,
   categories,
   jenjangs,
@@ -30,7 +29,6 @@ const Post = ({
   profilePicture,
 }) => {
   const [imageError, setImageError] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState("56.25%");
 
   const formatTanggal = (tanggal) => {
     if (!tanggal) return "-";
@@ -44,141 +42,132 @@ const Post = ({
   // Fungsi untuk mendapatkan URL profile picture
   const getProfilePictureUrl = () => {
     console.log("Profile Picture Input:", profilePicture);
-  
-    // Jika tidak ada profile picture atau undefined
-    if (!profilePicture || profilePicture === 'undefined') {
+
+    // Jika profilePicture adalah undefined, null, atau string kosong
+    if (!profilePicture || profilePicture.trim() === "") {
       console.log("No profile picture, using default");
-      return '/default-avatar.png';
+      return "/default-avatar.png";
     }
-    
+
     // Jika profilePicture adalah path relatif dari backend
-    if (typeof profilePicture === 'string') {
-      if (profilePicture.startsWith('/uploads')) {
+    if (typeof profilePicture === "string") {
+      if (profilePicture.startsWith("/uploads")) {
         const fullUrl = `http://localhost:9000${profilePicture}`;
         console.log("Constructed Full URL:", fullUrl);
         return fullUrl;
       }
-      
+
       // Jika sudah full URL
       console.log("Using profile picture as is:", profilePicture);
       return profilePicture;
     }
-  
+
     console.log("Unexpected profile picture format");
-    return '/default-avatar.png';
-  };
-
-  const handleImageLoad = (e) => {
-    const { naturalWidth, naturalHeight } = e.target;
-    const calculatedAspectRatio = (naturalHeight / naturalWidth) * 100;
-
-    const normalizedAspectRatio = Math.max(
-      40,
-      Math.min(75, calculatedAspectRatio)
-    );
-    setAspectRatio(`${normalizedAspectRatio}%`);
+    return "/default-avatar.png";
   };
 
   const handleImageError = () => {
     setImageError(true);
   };
+  
+  // Format deadline dengan format sama seperti trending
+  const formatDeadline = (deadlineDate) => {
+    if (!deadlineDate) return "Tidak ada tanggal";
+    
+    const deadline = new Date(deadlineDate);
+    const now = new Date();
+    const diffTime = Math.abs(deadline - now);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      return "Hari ini";
+    } else if (diffDays === 1) {
+      return "1 hari lagi";
+    } else if (diffDays <= 7) {
+      return `${diffDays} hari lagi`;
+    } else if (diffDays <= 30) {
+      const weeks = Math.ceil(diffDays / 7);
+      return `${weeks} minggu lagi`;
+    } else {
+      return deadline.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+  };
 
   return (
-    <Link to={`/post/${id}`} className="block w-full">
-      <div
-        className="bg-white rounded-xl overflow-hidden shadow-md border border-gray-100 flex"
-        style={{
-          aspectRatio: `1 / ${parseFloat(aspectRatio) / 100 + 0.4}`,
-        }}
-      >
-        {/* Kontainer Gambar */}
-        <div className="relative w-1/2" style={{ paddingTop: aspectRatio }}>
+    <Link to={`/post/${id}`} className="block w-full h-full">
+      <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 duration-300 flex flex-col h-full">
+        <div className="relative h-64">
           {!imageError ? (
             <img
-              className="absolute top-0 left-0 w-full h-full object-contain bg-gray-50"
+              className="w-full h-full object-contain bg-gray-100"
               src={image}
               alt={title}
-              onLoad={handleImageLoad}
               onError={handleImageError}
             />
           ) : (
-            <div className="absolute top-0 left-0 w-full h-full bg-gray-200 flex items-center justify-center">
+            <div className="w-full h-full bg-gray-200 flex items-center justify-center">
               <span className="text-gray-500">Image not available</span>
             </div>
           )}
+          
+          {/* Badge tanggal di kanan atas */}
+          <div className="absolute top-0 right-0 bg-[#fdd813] text-[#1d305f] px-3 py-1 m-2 rounded-full text-xs font-medium shadow-sm">
+            {formatDeadline(pelaksanaan)}
+          </div>
         </div>
 
         {/* Konten Card */}
-        <div className="p-4 flex flex-col  flex-grow w-1/2">
-          {/* Judul */}
-          <h2 className="font-bold text-lg mb-2 line-clamp-2 text-gray-800 hover:text-blue-600 transition-colors">
+        <div className="p-3 flex flex-col flex-grow">
+          {/* Judul dengan tinggi tetap */}
+          <h2 className="font-bold text-[#1d305f] text-lg mb-4 hover:text-[#5b83c2] transition-colors line-clamp-2 h-12">
             {title}
           </h2>
 
-          {/* Deskripsi */}
-          <p className="text-gray-700 text-sm line-clamp-4 mb-2 ">
-            {description}
-          </p>
-
-          <div className="mt-auto">
-            {/* Informasi Pembuat */}
-            <div className="flex items-center mb-4">
-              <div className="mr-2">
-                <img
-                  src={getProfilePictureUrl()}
-                  alt={creatorName || "Unknown Creator"}
-                  className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
-                  onError={(e) => {
-                    e.target.src = "/default-avatar.png";
-                  }}
-                />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-700">
-                  {creatorName || "Unknown Creator"}
-                </p>
-              </div>
-            </div>
-
-            {/* Kategori - hanya menampilkan dua kategori */}
-            <div className="flex flex-wrap gap-2">
-              {categories &&
-                categories.slice(0, 2).map((category, index) => (
+          {/* Tag Container dengan tinggi tetap */}
+          <div className="space-y-1.5 mb-2 min-h-[50px]">
+            {/* Kategori */}
+            {categories && categories.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {categories.slice(0, 2).map((category, index) => (
                   <span
                     key={index}
-                    className={`
-                  text-xs px-2.5 py-1 rounded-full font-medium 
-                  border transition-all duration-300 
-                  ${getCategoryColor(category)}
-                `}
+                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${getCategoryColor(category)}`}
                   >
                     {category}
                   </span>
                 ))}
-            </div>
+              </div>
+            )}
 
-            {/* Jenjang - hanya menampilkan jenjang */}
-            <div className="flex flex-wrap gap-2 mt-2">
-              {jenjangs &&
-                jenjangs.slice(0, 2).map((jenjang, index) => (
+            {/* Jenjang */}
+            {jenjangs && jenjangs.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {jenjangs.slice(0, 2).map((jenjang, index) => (
                   <span
                     key={index}
-                    className={`text-xs px-2.5 py-1 rounded-full font-medium border transition-all duration-300`}
+                    className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-700"
                   >
                     {jenjang}
                   </span>
                 ))}
-            </div>
-
-            {/* Tambahkan informasi tanggal dan status */}
-            <div className="mt-2 pl-1">
-              <div className="flex justify-between items-center mb-2">
-                <div>
-                  <p className="text-xs text-gray-600">
-                    {formatTanggal(pelaksanaan)}
-                  </p>
-                </div>
               </div>
+            )}
+          </div>
+
+          {/* Creator Info (pushed to bottom with mt-auto) */}
+          <div className="mt-auto pt-1.5 flex items-center text-gray-500 text-sm border-t border-gray-100">
+            <div className="flex items-center">
+              <img
+                src={getProfilePictureUrl()}
+                alt={creatorName || "Unknown Creator"}
+                className="w-5 h-5 rounded-full object-cover border border-gray-200 mr-1.5"
+                onError={(e) => {
+                  e.target.src = "/default-avatar.png";
+                }}
+              />
+              <span className="text-xs font-medium text-gray-700 truncate">
+                {creatorName || "Unknown Creator"}
+              </span>
             </div>
           </div>
         </div>
