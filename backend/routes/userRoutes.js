@@ -272,16 +272,23 @@ router.put(
   uploadProfile.single("profilePicture"),
   async (req, res) => {
     try {
+      console.log("Profile update request received");
+      console.log("Request body:", req.body);
+      console.log("Request file:", req.file);
+      
       // Cari user yang akan diupdate
       const user = await User.findOne({ id: req.user.id });
 
       if (!user) {
+        console.log("User not found with ID:", req.user.id);
         return res.status(404).json({
           success: false,
           message: "User tidak ditemukan",
         });
       }
 
+      console.log("Found user:", user.id, user.name);
+      
       // Siapkan data update
       const updateData = {
         name: req.body.name,
@@ -291,39 +298,118 @@ router.put(
 
       // Jika ada file baru diunggah
       if (req.file) {
-        // Hapus foto profil lama jika ada (kecuali default)
-        if (
-          user.profilePicture && 
-          user.profilePicture !== '/uploads/profiles/default-avatar.png'
-        ) {
-          const oldImagePath = path.join(__dirname, "..", user.profilePicture);
-          if (fs.existsSync(oldImagePath)) {
-            fs.unlinkSync(oldImagePath);
+        try {
+          console.log("New profile picture uploaded:", req.file.filename);
+          console.log("File details:", {
+            fieldname: req.file.fieldname,
+            originalname: req.file.originalname,
+            encoding: req.file.encoding,
+            mimetype: req.file.mimetype,
+            destination: req.file.destination,
+            filename: req.file.filename,
+            path: req.file.path,
+            size: req.file.size
+          });
+          
+          // Hapus foto profil lama jika ada (kecuali default)
+          if (
+            user.profilePicture && 
+            user.profilePicture !== '/uploads/profiles/default-avatar.png' &&
+            user.profilePicture !== ''
+          ) {
+            try {
+              const oldImagePath = path.resolve(__dirname, "..", user.profilePicture.replace(/^\//, ''));
+              console.log("Attempting to delete old profile picture:", oldImagePath);
+              console.log("File exists:", fs.existsSync(oldImagePath));
+              
+              if (fs.existsSync(oldImagePath)) {
+                try {
+                  fs.unlinkSync(oldImagePath);
+                  console.log("Old profile picture deleted successfully");
+                } catch (err) {
+                  console.error("Error deleting old profile picture:", err);
+                  // Continue anyway - not critical if old file remains
+                }
+              }
+            } catch (pathErr) {
+              console.error("Error resolving old image path:", pathErr);
+              // Continue anyway - not critical
+            }
           }
-        }
 
-        // Set path foto profil baru
-        updateData.profilePicture = `/uploads/profiles/${req.file.filename}`;
+          // Set path foto profil baru - make sure the path is consistent
+          updateData.profilePicture = `/uploads/profiles/${req.file.filename}`;
+          console.log("New profile picture path:", updateData.profilePicture);
+          
+          // Verify the file was actually saved
+          try {
+            const newImagePath = path.resolve(__dirname, "..", "uploads", "profiles", req.file.filename);
+            console.log("Checking if new file exists:", newImagePath);
+            console.log("New file exists:", fs.existsSync(newImagePath));
+            
+            if (!fs.existsSync(newImagePath)) {
+              console.warn("Warning: Uploaded file was not found at expected location");
+            }
+          } catch (verifyErr) {
+            console.error("Error verifying new file:", verifyErr);
+            // Continue anyway - the file might still be there
+          }
+        } catch (fileErr) {
+          console.error("Error processing uploaded file:", fileErr);
+          return res.status(500).json({
+            success: false,
+            message: "Error processing uploaded file",
+            error: fileErr.message
+          });
+        }
+      } else {
+        console.log("No new profile picture uploaded");
       }
 
-      // Lakukan update
-      const updatedUser = await User.findOneAndUpdate(
-        { id: req.user.id },
-        updateData,
-        { new: true }
-      ).select("-password");
+      // Lakukan update dengan findOneAndUpdate
+      try {
+        console.log("Updating user with data:", updateData);
+        const updatedUser = await User.findOneAndUpdate(
+          { id: req.user.id },
+          updateData,
+          { new: true }
+        ).select("-password");
 
-      res.status(200).json({
-        success: true,
-        message: "Profil berhasil diperbarui",
-        data: updatedUser,
-      });
+        if (!updatedUser) {
+          return res.status(404).json({
+            success: false,
+            message: "User tidak ditemukan saat update"
+          });
+        }
+
+        console.log("User profile updated successfully");
+        console.log("Updated user data:", {
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          profilePicture: updatedUser.profilePicture
+        });
+        
+        res.status(200).json({
+          success: true,
+          message: "Profil berhasil diperbarui",
+          data: updatedUser,
+        });
+      } catch (updateErr) {
+        console.error("Error during database update:", updateErr);
+        return res.status(500).json({
+          success: false,
+          message: "Gagal melakukan update di database",
+          error: updateErr.message
+        });
+      }
     } catch (error) {
       console.error("Error updating profile:", error);
       res.status(500).json({
         success: false,
         message: "Gagal memperbarui profil",
         error: error.message,
+        stack: error.stack
       });
     }
   }

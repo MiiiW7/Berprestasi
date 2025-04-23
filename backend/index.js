@@ -82,23 +82,66 @@ app.use(async (req, res, next) => {
 });
 
 // Create uploads directories if they don't exist
-const profilesDir = path.join(__dirname, 'uploads', 'profiles');
-const postsDir = path.join(__dirname, 'uploads', 'posts');
+const profilesDir = path.resolve(__dirname, 'uploads', 'profiles');
+const postsDir = path.resolve(__dirname, 'uploads', 'posts');
+
+console.log("Profiles directory path:", profilesDir);
+console.log("Posts directory path:", postsDir);
 
 // Disable directory creation on Vercel environment (serverless)
 if (process.env.VERCEL !== '1') {
   try {
+    console.log("Creating upload directories...");
     fs.mkdirSync(profilesDir, { recursive: true });
     fs.mkdirSync(postsDir, { recursive: true });
     console.log('Upload directories created successfully');
+    console.log("Profiles directory exists:", fs.existsSync(profilesDir));
+    console.log("Posts directory exists:", fs.existsSync(postsDir));
+    
+    // Set permissions
+    try {
+      fs.chmodSync(profilesDir, 0o777);
+      fs.chmodSync(postsDir, 0o777);
+      console.log("Directory permissions set to 777");
+    } catch (permErr) {
+      console.error("Error setting directory permissions:", permErr);
+    }
   } catch (err) {
     console.error('Error creating upload directories:', err);
+    console.error('Error details:', JSON.stringify({
+      code: err.code,
+      path: err.path,
+      errno: err.errno,
+      syscall: err.syscall
+    }));
   }
 }
 
 // Middleware untuk serving static files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const uploadsPath = path.resolve(__dirname, 'uploads');
+console.log("Uploads static path:", uploadsPath);
+console.log("Uploads directory exists:", fs.existsSync(uploadsPath));
+
+// Ensure uploads directory is created if it doesn't exist yet
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+  console.log("Created main uploads directory");
+}
+
+app.use('/uploads', express.static(uploadsPath));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Specific routes for uploads subdirectories
+const postsStaticPath = path.resolve(__dirname, 'uploads', 'posts');
+const profilesStaticPath = path.resolve(__dirname, 'uploads', 'profiles');
+
+console.log("Posts static path:", postsStaticPath);
+console.log("Posts static directory exists:", fs.existsSync(postsStaticPath));
+console.log("Profiles static path:", profilesStaticPath);
+console.log("Profiles static directory exists:", fs.existsSync(profilesStaticPath));
+
+app.use('/uploads/posts', express.static(postsStaticPath));
+app.use('/uploads/profiles', express.static(profilesStaticPath));
 
 app.get("/", (req, res) => {
   console.log("Root endpoint called");
@@ -125,9 +168,6 @@ app.use('/user', userRoutes);
 app.use('/notifications', notificationRoutes);
 
 app.use('/search', searchRoute);
-
-app.use('/uploads/posts', express.static(path.join(__dirname, 'uploads', 'posts')));
-app.use('/uploads/profiles', express.static(path.join(__dirname, 'uploads', 'profiles')));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

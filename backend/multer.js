@@ -25,26 +25,55 @@ if (isVercel) {
     // Storage untuk foto lomba
     postStorage = multer.diskStorage({
         destination: function (req, file, cb) {
-            const uploadDir = join(__dirname, "uploads", "posts");
+            // Create absolute path directly from project root
+            const uploadDir = path.resolve(__dirname, "uploads", "posts");
             // Pastikan direktori ada
-            fs.mkdirSync(uploadDir, { recursive: true });
-            cb(null, uploadDir);
+            try {
+                console.log("Creating post upload directory:", uploadDir);
+                fs.mkdirSync(uploadDir, { recursive: true });
+                const stats = fs.statSync(uploadDir);
+                console.log("Post directory created/exists with permissions:", stats.mode);
+                console.log("Post directory exists:", fs.existsSync(uploadDir));
+                cb(null, uploadDir);
+            } catch (err) {
+                console.error("Error creating post upload directory:", err);
+                console.error("Error details:", JSON.stringify({
+                    code: err.code,
+                    path: err.path,
+                    errno: err.errno,
+                    syscall: err.syscall
+                }));
+                cb(new Error('Could not create post upload directory'), null);
+            }
         },
         filename: function (req, file, cb) {
-            cb(null, Date.now() + "-" + file.originalname);
+            const filename = Date.now() + "-" + file.originalname;
+            console.log("Generated filename for post image:", filename);
+            cb(null, filename);
         },
     });
 
     // Storage untuk foto profil
     profileStorage = multer.diskStorage({
         destination: function (req, file, cb) {
-            const uploadDir = join(__dirname, "uploads", "profiles");
+            // Create absolute path directly from project root
+            const uploadDir = path.resolve(__dirname, "uploads", "profiles");
             // Pastikan direktori ada
             try {
+                console.log("Creating profile upload directory:", uploadDir);
                 fs.mkdirSync(uploadDir, { recursive: true });
+                const stats = fs.statSync(uploadDir);
+                console.log("Directory created/exists with permissions:", stats.mode);
+                console.log("Directory exists:", fs.existsSync(uploadDir));
                 cb(null, uploadDir);
             } catch (err) {
                 console.error("Error creating upload directory:", err);
+                console.error("Error details:", JSON.stringify({
+                    code: err.code,
+                    path: err.path,
+                    errno: err.errno,
+                    syscall: err.syscall
+                }));
                 cb(new Error('Could not create upload directory'), null);
             }
         },
@@ -55,6 +84,7 @@ if (isVercel) {
                 const timestamp = Date.now();
                 const fileExt = path.extname(file.originalname);
                 const fileName = `profile-${userPrefix}-${timestamp}${fileExt}`;
+                console.log("Generated filename for profile picture:", fileName);
                 cb(null, fileName);
             } catch (err) {
                 console.error("Error generating filename:", err);

@@ -190,7 +190,11 @@ router.get("/:id", async (req, res) => {
     // Gabungkan data post dengan data creator
     const postWithCreator = {
       ...post,
-      creator: creator ? { id: creator.id, name: creator.name } : null,
+      creator: creator ? { 
+        id: creator.id, 
+        name: creator.name, 
+        profilePicture: creator.profilePicture || '/uploads/profiles/default-avatar.png'
+      } : null,
     };
 
     res.status(200).json({
@@ -615,10 +619,19 @@ router.get("/:postId/followers", verifyToken, async (req, res) => {
       });
     }
 
+    console.log("Fetching followers for post:", post.id);
+    console.log("Followers list:", post.followers);
+
     // Ambil detail followers
     const followers = await User.find({
       id: { $in: post.followers },
-    }).select("id name email nomor");
+    }).select("id name email nomor profilePicture");
+
+    console.log("Found followers:", followers.length);
+    // Log each follower for debugging
+    followers.forEach(follower => {
+      console.log(`Follower ${follower.name} (${follower.id}) - Profile picture: ${follower.profilePicture}`);
+    });
 
     res.status(200).json({
       success: true,

@@ -73,11 +73,8 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setError(null);
       
-      // Redirect to frontend login if coming from admin dashboard
-      const currentUrl = window.location.href;
-      if (currentUrl.includes("admin") || currentUrl.includes("3000")) {
-        window.location.href = window.location.origin + "/login";
-      }
+      // Always redirect to login page after logout
+      window.location.href = "/login";
     }
   }, [token]);
 

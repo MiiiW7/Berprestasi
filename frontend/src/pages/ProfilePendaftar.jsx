@@ -20,12 +20,19 @@ const ProfilePendaftar = () => {
   const [error, setError] = useState(null);
   const [profilePicture, setProfilePicture] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+  const [imageErrors, setImageErrors] = useState({});
 
   const BACKEND_URL = "http://localhost:9000";
 
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return "";
+  const getImageUrl = (imagePath, postId) => {
+    // If we've already had an error for this image, return placeholder immediately
+    if (imageErrors[postId]) {
+      return "/placeholder-image.jpg";
+    }
+    
+    if (!imagePath) return "/placeholder-image.jpg";
     if (imagePath.startsWith("http")) return imagePath;
+    console.log("Constructing image URL for:", imagePath);
     return `${BACKEND_URL}${imagePath}`;
   };
 
@@ -112,6 +119,7 @@ const ProfilePendaftar = () => {
     }
 
     try {
+      console.log("Attempting to update profile...");
       const response = await axios.put(
         'http://localhost:9000/user/profile',
         submitData,
@@ -130,9 +138,29 @@ const ProfilePendaftar = () => {
       setIsEditing(false);
       setPreviewImage(null);
       setProfilePicture(null);
+      
+      // Show success message
+      alert('Profil berhasil diperbarui!');
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Gagal memperbarui profil. Silakan coba lagi.');
+      
+      // More detailed error message
+      let errorMessage = 'Gagal memperbarui profil. ';
+      
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        errorMessage += `Server error: ${error.response.status} - ${error.response.data?.message || 'Unknown error'}`;
+        console.error('Error response data:', error.response.data);
+      } else if (error.request) {
+        // The request was made but no response was received
+        errorMessage += 'Tidak ada respon dari server. Cek koneksi internet Anda.';
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        errorMessage += error.message;
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -364,11 +392,13 @@ const ProfilePendaftar = () => {
                 <div key={post.id} className="bg-white border rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
                   <div className="aspect-w-16 aspect-h-9">
                     <img
-                      src={getImageUrl(post.image)}
+                      src={getImageUrl(post.image, post.id)}
                       alt={post.title}
                       className="w-full h-full object-cover"
                       onError={(e) => {
+                        console.log("Post image error, using placeholder");
                         e.target.src = "/placeholder-image.jpg";
+                        setImageErrors(prev => ({...prev, [post.id]: true}));
                       }}
                     />
                   </div>

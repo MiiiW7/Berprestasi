@@ -16,18 +16,30 @@ const SearchPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('posts');
   const [error, setError] = useState(null);
+  const [imageErrors, setImageErrors] = useState({});
+  const [profileImageErrors, setProfileImageErrors] = useState({});
 
   const BACKEND_URL = "http://localhost:9000";
 
   // Fungsi untuk mendapatkan URL gambar
-  const getImageUrl = (imagePath) => {
+  const getImageUrl = (imagePath, itemId) => {
+    // If we've already had an error for this image, return placeholder immediately
+    if (imageErrors[itemId]) {
+      return '/placeholder-image.jpg';
+    }
+    
     if (!imagePath) return '/placeholder-image.jpg';
     if (imagePath.startsWith('http')) return imagePath;
     return `${BACKEND_URL}${imagePath}`;
   };
 
   // Fungsi untuk mendapatkan URL profile picture
-  const getProfilePictureUrl = (profilePicture) => {
+  const getProfilePictureUrl = (profilePicture, userId) => {
+    // If we've already had an error for this profile image, return default immediately
+    if (profileImageErrors[userId]) {
+      return "https://ui-avatars.com/api/?name=User&background=1d305f&color=fff&size=100";
+    }
+    
     console.log("Raw profilePicture:", profilePicture);
     
     // Default avatar URL (online)
@@ -287,11 +299,12 @@ const SearchPage = () => {
                 <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 duration-300 flex flex-col h-full">
                   <div className="relative h-64">
                     <img 
-                      src={getImageUrl(post.image)} 
+                      src={getImageUrl(post.image, post.id)} 
                       alt={post.title}
                       className="w-full h-full object-contain bg-gray-100"
                       onError={(e) => {
                         e.target.src = "/placeholder-image.jpg";
+                        setImageErrors(prev => ({...prev, [post.id]: true}));
                       }}
                     />
                     <div className="absolute top-0 right-0 bg-[#fdd813] text-[#1d305f] px-3 py-1 m-2 rounded-full text-xs font-medium shadow-sm">
@@ -336,12 +349,13 @@ const SearchPage = () => {
                     <div className="mt-auto pt-1.5 flex items-center text-gray-500 text-sm border-t border-gray-100">
                       <div className="flex items-center">
                         <img
-                          src={getProfilePictureUrl(post.creatorDetails?.profilePicture)}
+                          src={getProfilePictureUrl(post.creatorDetails?.profilePicture, post.creatorDetails?.id)}
                           alt={post.creatorDetails?.name || "Unknown Creator"}
                           className="w-5 h-5 rounded-full object-cover border border-gray-200 mr-1.5"
                           onError={(e) => {
                             console.log("Profile image error, using online avatar");
                             e.target.src = "https://ui-avatars.com/api/?name=User&background=1d305f&color=fff&size=100";
+                            setProfileImageErrors(prev => ({...prev, [post.creatorDetails?.id]: true}));
                           }}
                         />
                         <span className="text-xs font-medium text-gray-700 truncate">
@@ -364,12 +378,13 @@ const SearchPage = () => {
                 <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 duration-300 p-6">
                   <div className="flex flex-col items-center">
                     <img 
-                      src={getProfilePictureUrl(user.profilePicture)} 
+                      src={getProfilePictureUrl(user.profilePicture, user.id)} 
                       alt={user.name}
                       className="w-24 h-24 rounded-full object-cover mb-4 border-2 border-[#5b83c2]"
                       onError={(e) => {
                         console.log("User profile image error, using online avatar");
                         e.target.src = "https://ui-avatars.com/api/?name=User&background=1d305f&color=fff&size=100";
+                        setProfileImageErrors(prev => ({...prev, [user.id]: true}));
                       }}
                     />
                     <h3 className="font-bold text-[#1d305f] text-lg mb-1">{user.name}</h3>

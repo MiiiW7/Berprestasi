@@ -292,22 +292,7 @@ const Login = () => {
             </div>
           </form>
 
-          {/* Demo Mode Information */}
-          <div className="mt-8 text-center text-sm text-gray-500">
-            <p className="mb-1">
-              <span className="font-semibold">Status Server:</span>{" "}
-              <span className="inline-flex items-center">
-                <span className="w-2 h-2 bg-red-500 rounded-full mr-1"></span>
-                Mengalami gangguan
-              </span>
-            </p>
-            <p className="text-xs mt-1">
-              Server backend saat ini sedang mengalami gangguan. 
-              Jika login gagal, coba gunakan:<br />
-              <span className="font-mono bg-gray-100 px-1 rounded">demo@example.com / demo123</span> (user) atau{" "}
-              <span className="font-mono bg-gray-100 px-1 rounded">admin@example.com / admin123</span> (admin)
-            </p>
-          </div>
+          
         </div>
       </div>
     </div>

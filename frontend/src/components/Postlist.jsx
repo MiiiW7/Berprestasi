@@ -95,7 +95,7 @@ const Postlist = () => {
       {/* Grid Responsif */}
       <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:w-[400px] md:w-[800px] lg:w-[800px] xl:w-[1000px]">
         {dataPost.map((post) => (
-          <div key={post._id} className="h-full">
+          <div key={post.id} className="h-full">
             <Post
               id={post.id}
               title={post.title}
@@ -104,8 +104,7 @@ const Postlist = () => {
               categories={post.categories}
               jenjangs={post.jenjangs}
               pelaksanaan={post.pelaksanaan}
-              profilePicture={post.creator?.profilePicture}
-              creatorName={post.creator?.name || "Unknown"}
+              creator={post.creator}
             />
           </div>
         ))}

@@ -55,7 +55,7 @@ const CategoryPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:w-[400px] md:w-[800px] lg:w-[800px] xl:w-[1000px] ">
             {posts.map((post) => (
               <Post
-                key={post._id}
+                key={post.id}
                 id={post.id}
                 title={post.title}
                 description={post.description}
@@ -63,8 +63,7 @@ const CategoryPage = () => {
                 categories={post.categories}
                 jenjangs={post.jenjangs}
                 pelaksanaan={post.pelaksanaan}
-                creatorName={post.creator?.name}
-                profilePicture={post.creator?.profilePicture || '/default-avatar.png'} // Tambahkan fallback
+                creator={post.creator}
               />
             ))}
           </div>

@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 
 const getCategoryColor = (category) => {
   const categoryColors = {
@@ -27,9 +28,92 @@ const Post = ({
   pelaksanaan,
   creatorName,
   profilePicture,
+  creator,
 }) => {
+  // Use refs to store image URLs to avoid rendering loops
   const [imageError, setImageError] = useState(false);
+  const [profileImageError, setProfileImageError] = useState(false);
+  const processedImageRef = useRef(null);
+  const processedProfileImageRef = useRef(null);
+  const BACKEND_URL = "http://localhost:9000";
+  
+  // Process the profile picture URL once on component mount or when props change
+  useEffect(() => {
+    // Reset refs when component receives new props
+    processedImageRef.current = null;
+    processedProfileImageRef.current = null;
+    setProfileImageError(false);
+    setImageError(false);
+    
+    // Process post image URL
+    if (image) {
+      if (image.startsWith("http")) {
+        processedImageRef.current = image;
+      } else if (image.startsWith("/")) {
+        processedImageRef.current = `${BACKEND_URL}${image}`;
+      } else {
+        processedImageRef.current = `${BACKEND_URL}/${image}`;
+      }
+    }
+    
+    try {
+      // Process profile image URL
+      if (creator && creator.profilePicture) {
+        const pfp = creator.profilePicture;
+        
+        console.log("Raw profile picture:", pfp);
+        
+        if (pfp.startsWith("http")) {
+          processedProfileImageRef.current = pfp;
+        } else if (pfp.startsWith("/uploads")) {
+          processedProfileImageRef.current = `${BACKEND_URL}${pfp}`;
+        } else if (pfp.startsWith("uploads/")) {
+          processedProfileImageRef.current = `${BACKEND_URL}/${pfp}`;
+        } else {
+          // If it doesn't match expected formats but isn't empty, try to use it with backend URL
+          if (pfp && pfp.trim() !== "") {
+            if (pfp.startsWith("/")) {
+              processedProfileImageRef.current = `${BACKEND_URL}${pfp}`;
+            } else {
+              processedProfileImageRef.current = `${BACKEND_URL}/${pfp}`;
+            }
+          } else {
+            processedProfileImageRef.current = "/default-avatar.png";
+          }
+        }
+        
+        console.log("Setting profile image URL:", processedProfileImageRef.current);
+      } else if (profilePicture) {
+        if (profilePicture.startsWith("http")) {
+          processedProfileImageRef.current = profilePicture;
+        } else if (profilePicture.startsWith("/")) {
+          processedProfileImageRef.current = `${BACKEND_URL}${profilePicture}`;
+        } else if (profilePicture && profilePicture.trim() !== "") {
+          processedProfileImageRef.current = `${BACKEND_URL}/${profilePicture}`;
+        } else {
+          processedProfileImageRef.current = "/default-avatar.png";
+        }
+      } else {
+        processedProfileImageRef.current = "/default-avatar.png";
+      }
 
+      // Test if the image URL is valid
+      if (processedProfileImageRef.current && 
+          processedProfileImageRef.current !== "/default-avatar.png" && 
+          !profileImageError) {
+        const img = new Image();
+        img.onerror = () => {
+          console.error("Pre-test profile image failed to load:", processedProfileImageRef.current);
+          processedProfileImageRef.current = "/default-avatar.png";
+        };
+        img.src = processedProfileImageRef.current;
+      }
+    } catch (error) {
+      console.error("Error processing profile picture:", error);
+      processedProfileImageRef.current = "/default-avatar.png";
+    }
+  }, [image, profilePicture, creator, BACKEND_URL, profileImageError]);
+  
   const formatTanggal = (tanggal) => {
     if (!tanggal) return "-";
     return new Date(tanggal).toLocaleDateString("id-ID", {
@@ -38,36 +122,15 @@ const Post = ({
       year: "numeric",
     });
   };
-
-  // Fungsi untuk mendapatkan URL profile picture
-  const getProfilePictureUrl = () => {
-    console.log("Profile Picture Input:", profilePicture);
-
-    // Jika profilePicture adalah undefined, null, atau string kosong
-    if (!profilePicture || profilePicture.trim() === "") {
-      console.log("No profile picture, using default");
-      return "/default-avatar.png";
-    }
-
-    // Jika profilePicture adalah path relatif dari backend
-    if (typeof profilePicture === "string") {
-      if (profilePicture.startsWith("/uploads")) {
-        const fullUrl = `http://localhost:9000${profilePicture}`;
-        console.log("Constructed Full URL:", fullUrl);
-        return fullUrl;
-      }
-
-      // Jika sudah full URL
-      console.log("Using profile picture as is:", profilePicture);
-      return profilePicture;
-    }
-
-    console.log("Unexpected profile picture format");
-    return "/default-avatar.png";
-  };
-
+  
   const handleImageError = () => {
+    console.log("Post image failed to load:", image);
     setImageError(true);
+  };
+  
+  const handleProfileImageError = () => {
+    console.log("Profile image error, using default avatar:", processedProfileImageRef.current);
+    setProfileImageError(true);
   };
   
   // Format deadline dengan format sama seperti trending
@@ -93,6 +156,13 @@ const Post = ({
     }
   };
 
+  // Get the final image sources, using either the processed URL or fallback
+  const postImageSrc = imageError ? null : (processedImageRef.current || image);
+  const profileImageSrc = profileImageError ? "/default-avatar.png" : (processedProfileImageRef.current || "/default-avatar.png");
+
+  // Get the creator name, either from props or from creator object
+  const displayCreatorName = creatorName || (creator && creator.name) || "Unknown Creator";
+
   return (
     <Link to={`/post/${id}`} className="block w-full h-full">
       <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 duration-300 flex flex-col h-full">
@@ -100,7 +170,7 @@ const Post = ({
           {!imageError ? (
             <img
               className="w-full h-full object-contain bg-gray-100"
-              src={image}
+              src={postImageSrc}
               alt={title}
               onError={handleImageError}
             />
@@ -157,16 +227,16 @@ const Post = ({
           {/* Creator Info (pushed to bottom with mt-auto) */}
           <div className="mt-auto pt-1.5 flex items-center text-gray-500 text-sm border-t border-gray-100">
             <div className="flex items-center">
-              <img
-                src={getProfilePictureUrl()}
-                alt={creatorName || "Unknown Creator"}
-                className="w-5 h-5 rounded-full object-cover border border-gray-200 mr-1.5"
-                onError={(e) => {
-                  e.target.src = "/default-avatar.png";
-                }}
-              />
+              <div className="w-5 h-5 rounded-full bg-gray-200 overflow-hidden mr-1.5">
+                <img
+                  src={profileImageSrc}
+                  alt={displayCreatorName}
+                  className="w-full h-full object-cover"
+                  onError={handleProfileImageError}
+                />
+              </div>
               <span className="text-xs font-medium text-gray-700 truncate">
-                {creatorName || "Unknown Creator"}
+                {displayCreatorName}
               </span>
             </div>
           </div>

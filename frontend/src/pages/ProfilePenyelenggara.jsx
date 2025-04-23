@@ -20,6 +20,8 @@ const ProfilePenyelenggara = () => {
     email: user?.email || '',
     nomor: user?.nomor || '',
   });
+  const [imageErrors, setImageErrors] = useState({});
+  const [profileImageError, setProfileImageError] = useState(false);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -96,6 +98,11 @@ const ProfilePenyelenggara = () => {
 
   // Fungsi untuk mendapatkan URL gambar profil
   const getProfilePictureUrl = () => {
+    // If we already know this profile image failed, return default immediately
+    if (profileImageError) {
+      return '/default-avatar.png';
+    }
+    
     // Jika ada preview image (baru diupload), gunakan preview
     if (previewImage) return previewImage;
     
@@ -159,9 +166,15 @@ const ProfilePenyelenggara = () => {
     }
   }, [user]);
 
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return "";
+  const getImageUrl = (imagePath, postId) => {
+    // If we've already had an error for this image, return placeholder immediately
+    if (imageErrors[postId]) {
+      return "/placeholder-image.jpg";
+    }
+    
+    if (!imagePath) return "/placeholder-image.jpg";
     if (imagePath.startsWith("http")) return imagePath;
+    console.log("Constructing image URL for post:", imagePath);
     return `${BACKEND_URL}${imagePath}`;
   };
 
@@ -217,6 +230,11 @@ const ProfilePenyelenggara = () => {
                       src={getProfilePictureUrl()}
                       alt="Profile"
                       className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-white shadow-lg"
+                      onError={(e) => {
+                        console.log("Profile image error, using default");
+                        e.target.src = "/default-avatar.png";
+                        setProfileImageError(true);
+                      }}
                     />
                     {isEditing && (
                       <div className="absolute inset-0 rounded-full bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -385,11 +403,13 @@ const ProfilePenyelenggara = () => {
                 <div key={post.id} className="bg-white border rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
                   <div className="aspect-w-16 aspect-h-9">
                     <img
-                      src={getImageUrl(post.image)}
+                      src={getImageUrl(post.image, post.id)}
                       alt={post.title}
                       className="w-full h-full object-cover"
                       onError={(e) => {
+                        console.log("Post image error, using placeholder");
                         e.target.src = "/placeholder-image.jpg";
+                        setImageErrors(prev => ({...prev, [post.id]: true}));
                       }}
                     />
                   </div>
