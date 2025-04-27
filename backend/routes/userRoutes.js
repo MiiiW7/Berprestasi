@@ -6,16 +6,9 @@ import Post from "../models/post.js";
 import Notification from "../models/notification.js";
 import { User } from "../models/user.js";
 import { verifyToken } from "../middleware/auth.js";
-import { uploadProfile } from "../multer.js";
-import fs from "fs";
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import path from "path";
+import { uploadProfile, cloudinary } from "../middleware/upload.js";
 
 const router = express.Router();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 // AUTH ROUTES
 // Register User
@@ -29,15 +22,8 @@ router.post(
       // Input validation
       if (!name || !email || !password || !nomor) {
         // If required fields are missing, return an error
-        if (req.file) {
-          try {
-            const filePath = path.join(__dirname, "..", req.file.path);
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath);
-            }
-          } catch (fileError) {
-            console.error("Error deleting file:", fileError);
-          }
+        if (req.file && req.file.public_id) {
+          await cloudinary.uploader.destroy(req.file.public_id);
         }
         return res.status(400).json({
           success: false,
@@ -48,16 +34,9 @@ router.post(
       // Check for existing user
       const existingUser = await User.findOne({ email });
       if (existingUser) {
-        // Hapus file yang baru diupload jika user sudah ada
-        if (req.file) {
-          try {
-            const filePath = path.join(__dirname, "..", req.file.path);
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath);
-            }
-          } catch (fileError) {
-            console.error("Error deleting file:", fileError);
-          }
+        // Delete the uploaded file if user already exists
+        if (req.file && req.file.public_id) {
+          await cloudinary.uploader.destroy(req.file.public_id);
         }
         return res.status(400).json({
           success: false,
@@ -69,10 +48,11 @@ router.post(
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
 
-      // Siapkan data profile picture
+      // Prepare profile picture data
       let profilePicturePath = "";
       if (req.file) {
-        profilePicturePath = `/uploads/profiles/${req.file.filename}`;
+        // Use Cloudinary URL
+        profilePicturePath = req.file.path || req.file.secure_url;
       }
 
       // Create new user
@@ -133,14 +113,11 @@ router.post(
       console.error("Error message:", error.message);
       
       // Try to clean up any uploaded files
-      if (req.file) {
+      if (req.file && req.file.public_id) {
         try {
-          const filePath = path.join(__dirname, "..", req.file.path);
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-          }
+          await cloudinary.uploader.destroy(req.file.public_id);
         } catch (fileError) {
-          console.error("Error deleting file:", fileError);
+          console.error("Error deleting file from Cloudinary:", fileError);
         }
       }
       
@@ -298,72 +275,29 @@ router.put(
 
       // Jika ada file baru diunggah
       if (req.file) {
-        try {
-          console.log("New profile picture uploaded:", req.file.filename);
-          console.log("File details:", {
-            fieldname: req.file.fieldname,
-            originalname: req.file.originalname,
-            encoding: req.file.encoding,
-            mimetype: req.file.mimetype,
-            destination: req.file.destination,
-            filename: req.file.filename,
-            path: req.file.path,
-            size: req.file.size
-          });
-          
-          // Hapus foto profil lama jika ada (kecuali default)
-          if (
-            user.profilePicture && 
-            user.profilePicture !== '/uploads/profiles/default-avatar.png' &&
-            user.profilePicture !== ''
-          ) {
-            try {
-              const oldImagePath = path.resolve(__dirname, "..", user.profilePicture.replace(/^\//, ''));
-              console.log("Attempting to delete old profile picture:", oldImagePath);
-              console.log("File exists:", fs.existsSync(oldImagePath));
-              
-              if (fs.existsSync(oldImagePath)) {
-                try {
-                  fs.unlinkSync(oldImagePath);
-                  console.log("Old profile picture deleted successfully");
-                } catch (err) {
-                  console.error("Error deleting old profile picture:", err);
-                  // Continue anyway - not critical if old file remains
-                }
-              }
-            } catch (pathErr) {
-              console.error("Error resolving old image path:", pathErr);
-              // Continue anyway - not critical
-            }
-          }
-
-          // Set path foto profil baru - make sure the path is consistent
-          updateData.profilePicture = `/uploads/profiles/${req.file.filename}`;
-          console.log("New profile picture path:", updateData.profilePicture);
-          
-          // Verify the file was actually saved
+        console.log("New profile picture uploaded:", req.file);
+        
+        // Hapus foto profil lama dari Cloudinary jika ada
+        if (user.profilePicture && user.profilePicture.includes('cloudinary')) {
           try {
-            const newImagePath = path.resolve(__dirname, "..", "uploads", "profiles", req.file.filename);
-            console.log("Checking if new file exists:", newImagePath);
-            console.log("New file exists:", fs.existsSync(newImagePath));
+            // Extract public_id from the Cloudinary URL
+            const urlParts = user.profilePicture.split('/');
+            const filenameWithExtension = urlParts[urlParts.length - 1];
+            const publicId = filenameWithExtension.split('.')[0];
             
-            if (!fs.existsSync(newImagePath)) {
-              console.warn("Warning: Uploaded file was not found at expected location");
+            if (publicId) {
+              await cloudinary.uploader.destroy(publicId);
+              console.log("Old Cloudinary image deleted successfully");
             }
-          } catch (verifyErr) {
-            console.error("Error verifying new file:", verifyErr);
-            // Continue anyway - the file might still be there
+          } catch (err) {
+            console.error("Error deleting old Cloudinary image:", err);
+            // Continue anyway - not critical if old file remains
           }
-        } catch (fileErr) {
-          console.error("Error processing uploaded file:", fileErr);
-          return res.status(500).json({
-            success: false,
-            message: "Error processing uploaded file",
-            error: fileErr.message
-          });
         }
-      } else {
-        console.log("No new profile picture uploaded");
+
+        // Set path foto profil baru dari Cloudinary
+        updateData.profilePicture = req.file.path || req.file.secure_url;
+        console.log("New profile picture URL:", updateData.profilePicture);
       }
 
       // Lakukan update dengan findOneAndUpdate
@@ -413,7 +347,7 @@ router.put(
       });
     }
   }
-)
+);
 
 // Change Password
 router.put("/change-password", verifyToken, async (req, res) => {

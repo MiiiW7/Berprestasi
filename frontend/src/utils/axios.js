@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // Constant URLs as fallback
-const MAIN_BACKEND_URL = 'http://localhost:9000'; // Ganti dengan URL backend utama Anda
+const MAIN_BACKEND_URL = 'http://localhost:9000'; // Backend URL
 // Alternatif URLs - bisa dicoba jika backend utama bermasalah
 // Opsi 1: Gunakan hosting lain seperti Render, Railway, atau Fly.io
 // Opsi 2: Jalankan backend lokally dan expose dengan ngrok

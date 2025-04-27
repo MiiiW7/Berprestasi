@@ -1,8 +1,6 @@
 import express from "express";
 import bcrypt from "bcrypt";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
+import { uploadProfile, cloudinary } from "../middleware/upload.js";
 import Post from "../models/post.js";
 import { User } from "../models/user.js";
 import jwt from "jsonwebtoken";
@@ -11,19 +9,6 @@ import Notification from "../models/notification.js";
 import Engagement from "../models/engagement.js";
 
 const router = express.Router();
-
-// Konfigurasi multer untuk upload file
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/profiles/') // Pastikan folder ini ada
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname)) // Nama file unik
-  }
-});
-
-const upload = multer({ storage: storage });
-
 
 router.get("/", async (req, res) => {
   console.log("hello");
@@ -59,7 +44,7 @@ router.get("/user/:id", async (req, res) => {
 });
 
 // Rute untuk mengupdate user
-router.put("/user/:id", upload.single('profilePicture'), async (req, res) => {
+router.put("/user/:id", uploadProfile.single('profilePicture'), async (req, res) => {
   try {
     const { name, email, newPassword } = req.body;
     const userId = req.params.id;
@@ -91,16 +76,29 @@ router.put("/user/:id", upload.single('profilePicture'), async (req, res) => {
 
     // Proses update foto profil
     if (req.file) {
-      // Hapus foto profil lama jika ada
-      if (user.profilePicture) {
-        const oldFilePath = path.join('uploads/profiles', path.basename(user.profilePicture));
-        if (fs.existsSync(oldFilePath)) {
-          fs.unlinkSync(oldFilePath);
+      // Delete old image from Cloudinary if exists
+      if (user.profilePicture && user.profilePicture.includes('cloudinary')) {
+        try {
+          console.log(`Attempting to delete old profile image: ${user.profilePicture}`);
+          
+          // Extract public_id from the Cloudinary URL
+          const urlParts = user.profilePicture.split('/');
+          const filenameWithExtension = urlParts[urlParts.length - 1];
+          const publicIdWithExtension = filenameWithExtension.split('?')[0]; // Remove query params if any
+          const publicId = publicIdWithExtension.split('.')[0];
+          
+          if (publicId) {
+            console.log(`Deleting Cloudinary resource with public ID: ${publicId}`);
+            await cloudinary.uploader.destroy(publicId);
+            console.log("Old Cloudinary profile image deleted successfully");
+          }
+        } catch (err) {
+          console.error("Error deleting old Cloudinary image:", err);
         }
       }
 
-      // Set path foto profil baru
-      user.profilePicture = `/uploads/profiles/${req.file.filename}`;
+      // Set new Cloudinary profile picture path
+      user.profilePicture = req.file.path || req.file.secure_url;
     }
 
     // Simpan perubahan
@@ -139,7 +137,7 @@ router.get("/posts", async (req, res) => {
                 name: creator.name,
                 profilePicture:
                   creator.profilePicture ||
-                  "/uploads/profiles/default-avatar.png",
+                  "https://res.cloudinary.com/demo/image/upload/v1/sample/avatar-placeholder",
               }
             : null,
         };
@@ -160,7 +158,7 @@ router.get("/posts", async (req, res) => {
 });
 
 // Rute untuk membuat user baru
-router.post("/user", upload.single('profilePicture'), async (req, res) => {
+router.post("/user", uploadProfile.single('profilePicture'), async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -183,7 +181,7 @@ router.post("/user", upload.single('profilePicture'), async (req, res) => {
 
     // Tambahkan profile picture jika ada
     if (req.file) {
-      userData.profilePicture = `/uploads/profiles/${req.file.filename}`;
+      userData.profilePicture = req.file.path || req.file.secure_url;
     }
 
     // Buat user baru

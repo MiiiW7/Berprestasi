@@ -8,16 +8,12 @@ import Footer from '../components/Footer';
 const SearchPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState({
-    posts: [],
-    users: []
-  });
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('posts');
+  const [searchResults, setSearchResults] = useState({ posts: [], users: [] });
+  const [searchType, setSearchType] = useState("posts");
+  const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
-  const [profileImageErrors, setProfileImageErrors] = useState({});
 
   const BACKEND_URL = "http://localhost:9000";
 
@@ -35,61 +31,32 @@ const SearchPage = () => {
 
   // Fungsi untuk mendapatkan URL profile picture
   const getProfilePictureUrl = (profilePicture, userId) => {
-    // If we've already had an error for this profile image, return default immediately
-    if (profileImageErrors[userId]) {
-      return "https://ui-avatars.com/api/?name=User&background=1d305f&color=fff&size=100";
-    }
-    
-    console.log("Raw profilePicture:", profilePicture);
-    
-    // Default avatar URL (online)
-    const defaultAvatarUrl = "https://ui-avatars.com/api/?name=User&background=1d305f&color=fff&size=100";
-    
-    // Handle null/undefined
     if (!profilePicture) {
       console.log("No profile picture provided, using default");
       return defaultAvatarUrl;
     }
     
-    if (typeof profilePicture === "string") {
-      // Handle empty string
-      if (profilePicture.trim() === "") {
-        console.log("Empty profile picture string, using default");
-        return defaultAvatarUrl;
-      }
-      
-      // Check if it's our default placeholder
-      if (profilePicture === "/default-avatar.png") {
-        console.log("Default avatar path detected, using online avatar");
-        return defaultAvatarUrl;
-      }
-      
-      // Handle backend paths (both with and without starting slash)
-      if (profilePicture.startsWith("/uploads") || profilePicture.startsWith("uploads")) {
-        // Make sure the path starts with /
-        const normalizedPath = profilePicture.startsWith("/") 
-          ? profilePicture 
-          : `/${profilePicture}`;
-          
-        const fullUrl = `${BACKEND_URL}${normalizedPath}`;
-        console.log("Constructed backend URL:", fullUrl);
-        return fullUrl;
-      }
-      
-      // Already a complete URL (http/https)
-      if (profilePicture.startsWith("http")) {
-        console.log("Using profile URL as is:", profilePicture);
-        return profilePicture;
-      }
-      
-      // Any other path pattern, assume it's in the backend
-      console.log("Assuming backend path:", profilePicture);
-      const normalizedPath = profilePicture.startsWith("/") 
-        ? profilePicture 
-        : `/${profilePicture}`;
-      return `${BACKEND_URL}${normalizedPath}`;
+    // Check if it's our default placeholder
+    if (profilePicture === "/default-avatar.png") {
+      console.log("Default avatar path detected, using online avatar");
+      return defaultAvatarUrl;
     }
     
+    // Handle Cloudinary URLs
+    if (profilePicture.includes('cloudinary')) {
+      if (!profilePicture.startsWith('http')) {
+        return `https://${profilePicture}`;
+      }
+      return profilePicture;
+    }
+    
+    // Already a complete URL (http/https)
+    if (profilePicture.startsWith("http")) {
+      console.log("Using profile URL as is:", profilePicture);
+      return profilePicture;
+    }
+    
+    // For any other formats, use default avatar
     console.log("Unknown profile picture format, using default");
     return defaultAvatarUrl;
   };
@@ -123,13 +90,13 @@ const SearchPage = () => {
     const queryFromUrl = searchParams.get('query');
     
     if (queryFromUrl) {
-      setQuery(queryFromUrl);
+      setSearchQuery(queryFromUrl);
       handleSearch(queryFromUrl);
     }
   }, [location.search]);
 
   // Fungsi pencarian
-  const handleSearch = async (searchQuery = query) => {
+  const handleSearch = async (searchQuery = searchQuery) => {
     if (!searchQuery?.trim()) {
       setError('Masukkan kata kunci pencarian');
       return;
@@ -170,7 +137,7 @@ const SearchPage = () => {
           profilePicture: user.profilePicture || '/default-avatar.png'
         }));
         
-        setResults({
+        setSearchResults({
           posts: processedPosts,
           users: processedUsers
         });
@@ -225,8 +192,8 @@ const SearchPage = () => {
           <div className="flex flex-col sm:flex-row shadow-lg rounded-lg overflow-hidden">
             <input 
               type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari lomba atau penyelenggara..."
               className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-2 focus:ring-[#5b83c2]"
             />
@@ -247,24 +214,24 @@ const SearchPage = () => {
         {/* Tab Navigation */}
         <div className="flex justify-center mb-8 border-b">
           <button
-            onClick={() => setActiveTab('posts')}
+            onClick={() => setSearchType('posts')}
             className={`px-6 py-3 font-medium transition ${
-              activeTab === 'posts' 
+              searchType === 'posts' 
                 ? 'border-b-2 border-[#1d305f] text-[#1d305f]' 
                 : 'text-gray-500 hover:text-[#5b83c2]'
             }`}
           >
-            Lomba ({results.posts.length})
+            Lomba ({searchResults.posts.length})
           </button>
           <button
-            onClick={() => setActiveTab('users')}
+            onClick={() => setSearchType('users')}
             className={`px-6 py-3 font-medium transition ${
-              activeTab === 'users' 
+              searchType === 'users' 
                 ? 'border-b-2 border-[#1d305f] text-[#1d305f]' 
                 : 'text-gray-500 hover:text-[#5b83c2]'
             }`}
           >
-            Penyelenggara ({results.users.length})
+            Penyelenggara ({searchResults.users.length})
           </button>
         </div>
 
@@ -292,9 +259,9 @@ const SearchPage = () => {
         )}
 
         {/* Hasil Pencarian Lomba */}
-        {!isLoading && activeTab === 'posts' && (
+        {!isLoading && searchType === 'posts' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {results.posts.map((post) => (
+            {searchResults.posts.map((post) => (
               <Link to={`/post/${post.id}`} key={post.id} className="block w-full h-full">
                 <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 duration-300 flex flex-col h-full">
                   <div className="relative h-64">
@@ -352,11 +319,6 @@ const SearchPage = () => {
                           src={getProfilePictureUrl(post.creatorDetails?.profilePicture, post.creatorDetails?.id)}
                           alt={post.creatorDetails?.name || "Unknown Creator"}
                           className="w-5 h-5 rounded-full object-cover border border-gray-200 mr-1.5"
-                          onError={(e) => {
-                            console.log("Profile image error, using online avatar");
-                            e.target.src = "https://ui-avatars.com/api/?name=User&background=1d305f&color=fff&size=100";
-                            setProfileImageErrors(prev => ({...prev, [post.creatorDetails?.id]: true}));
-                          }}
                         />
                         <span className="text-xs font-medium text-gray-700 truncate">
                           {post.creatorDetails?.name || "Unknown Creator"}
@@ -371,9 +333,9 @@ const SearchPage = () => {
         )}
 
         {/* Hasil Pencarian Penyelenggara */}
-        {!isLoading && activeTab === 'users' && (
+        {!isLoading && searchType === 'users' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {results.users.map((user) => (
+            {searchResults.users.map((user) => (
               <Link to={`/profile/${user.id}`} key={user.id} className="block">
                 <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 duration-300 p-6">
                   <div className="flex flex-col items-center">
@@ -381,11 +343,6 @@ const SearchPage = () => {
                       src={getProfilePictureUrl(user.profilePicture, user.id)} 
                       alt={user.name}
                       className="w-24 h-24 rounded-full object-cover mb-4 border-2 border-[#5b83c2]"
-                      onError={(e) => {
-                        console.log("User profile image error, using online avatar");
-                        e.target.src = "https://ui-avatars.com/api/?name=User&background=1d305f&color=fff&size=100";
-                        setProfileImageErrors(prev => ({...prev, [user.id]: true}));
-                      }}
                     />
                     <h3 className="font-bold text-[#1d305f] text-lg mb-1">{user.name}</h3>
                     <p className="text-gray-500 text-sm mb-4">{user.email}</p>
@@ -412,7 +369,7 @@ const SearchPage = () => {
         )}
         
         {/* Tidak ada hasil */}
-        {!isLoading && activeTab === 'posts' && results.posts.length === 0 && !error && (
+        {!isLoading && searchType === 'posts' && searchResults.posts.length === 0 && !error && (
           <div className="text-center py-12">
             <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -422,7 +379,7 @@ const SearchPage = () => {
           </div>
         )}
         
-        {!isLoading && activeTab === 'users' && results.users.length === 0 && !error && (
+        {!isLoading && searchType === 'users' && searchResults.users.length === 0 && !error && (
           <div className="text-center py-12">
             <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

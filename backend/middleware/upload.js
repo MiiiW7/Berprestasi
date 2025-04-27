@@ -5,12 +5,11 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Configure Cloudinary with increased timeout
+// Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  timeout: 120000 // Increase timeout to 120 seconds (2 minutes)
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
 // Storage for post images using Cloudinary
@@ -19,15 +18,7 @@ const postStorage = new CloudinaryStorage({
   params: {
     folder: 'posts',
     allowed_formats: ['jpg', 'jpeg', 'png', 'gif'],
-    transformation: [
-      { width: 1000, height: 1000, crop: 'limit' },
-      { quality: 'auto:good' } // Add quality optimization
-    ],
-    // Add a unique filename to prevent conflicts
-    filename: function (req, file, cb) {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      cb(null, file.fieldname + '-' + uniqueSuffix);
-    }
+    transformation: [{ width: 1000, height: 1000, crop: 'limit' }]
   }
 });
 
@@ -37,15 +28,7 @@ const profileStorage = new CloudinaryStorage({
   params: {
     folder: 'profiles',
     allowed_formats: ['jpg', 'jpeg', 'png', 'gif'],
-    transformation: [
-      { width: 500, height: 500, crop: 'limit' },
-      { quality: 'auto:good' } // Add quality optimization
-    ],
-    // Add a unique filename to prevent conflicts
-    filename: function (req, file, cb) {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      cb(null, file.fieldname + '-' + uniqueSuffix);
-    }
+    transformation: [{ width: 500, height: 500, crop: 'limit' }]
   }
 });
 
@@ -67,20 +50,44 @@ const imageFilter = (req, file, cb) => {
 const uploadPost = multer({ 
   storage: postStorage,
   fileFilter: imageFilter,
-  limits: { 
-    fileSize: 5 * 1024 * 1024, // 5MB
-    fieldSize: 10 * 1024 * 1024 // 10MB for form fields
-  }
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
 // Upload for profile images
 const uploadProfile = multer({ 
   storage: profileStorage,
   fileFilter: imageFilter,
-  limits: { 
-    fileSize: 2 * 1024 * 1024, // 2MB for profiles
-    fieldSize: 5 * 1024 * 1024 // 5MB for form fields
-  }
+  limits: { fileSize: 2 * 1024 * 1024 } // 2MB for profiles
 });
 
-export { uploadPost, uploadProfile, cloudinary };
+// Helper function to upload image directly to Cloudinary (without multer)
+const uploadToCloudinary = async (file, folder = 'general') => {
+  try {
+    const result = await cloudinary.uploader.upload(file, {
+      folder: folder
+    });
+    return result;
+  } catch (error) {
+    console.error("Error uploading to Cloudinary:", error);
+    throw new Error("Failed to upload image to Cloudinary");
+  }
+};
+
+// Helper function to delete image from Cloudinary
+const deleteFromCloudinary = async (publicId) => {
+  try {
+    await cloudinary.uploader.destroy(publicId);
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting from Cloudinary:", error);
+    throw new Error("Failed to delete image from Cloudinary");
+  }
+};
+
+export { 
+  uploadPost, 
+  uploadProfile, 
+  cloudinary, 
+  uploadToCloudinary, 
+  deleteFromCloudinary 
+};

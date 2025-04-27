@@ -1,147 +1,33 @@
 import express from "express";
 import mongoose from "mongoose";
 import cors from 'cors';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';  
-import path from 'path';  
 import { PORT, mongoDBURL } from "./config.js";
 import adminRoutes from "./routes/adminRoute.js";
 import postRoutes from "./routes/postRoutes.js";
 import userRoutes from "./routes/userRoutes.js"
 import notificationRoutes from './routes/notificationRoutes.js';
 import searchRoute from './routes/searchRoute.js';
-//import vercelCompatMiddleware from './middleware/vercelCompat.js';
-// Disable postSchedulerJob import for Vercel
 import './src/postSchedulerJob.js';
-import fs from 'fs';
-
-// Conditional import based on environment
-let checkAndUpdatePosts;
-if (process.env.VERCEL === '1') {
-  console.log('Running on Vercel, using compatible scheduler');
-  import('./src/vercelCompatScheduler.js')
-    .then(module => {
-      checkAndUpdatePosts = module.default;
-      console.log('Vercel compatible scheduler loaded');
-    })
-    .catch(err => {
-      console.error('Error loading compatible scheduler:', err);
-    });
-} else {
-  console.log('Running locally, using node-cron scheduler');
-  try {
-    import('./src/postSchedulerJob.js')
-      .catch(err => console.error('Error loading scheduler:', err));
-  } catch (error) {
-    console.error('Error importing scheduler:', error);
-  }
-}
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const app = express();
 
 // Middleware untuk parsing req body
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Middleware untuk Vercel compatibility
-//app.use(vercelCompatMiddleware);
+// Enable CORS
+app.use(cors());
 
-// CORS middleware - lebih permisif dan diletakkan sebelum middleware lain
+// Set server timeout for all requests
 app.use((req, res, next) => {
-  // Izinkan semua origins (lebih permisif)
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Authorization, Origin, Accept');
-  res.setHeader('Access-Control-Max-Age', '86400'); // 24 jam cache untuk preflight requests
-  
-  // Handle OPTIONS (preflight) requests
-  if (req.method === 'OPTIONS') {
-    console.log('OPTIONS request dari origin:', req.headers.origin);
-    return res.status(200).end();
-  }
-  
-  // Log detail permintaan untuk debug
-  console.log(`${req.method} request ke ${req.path}`);
-  console.log('Headers:', JSON.stringify(req.headers));
-  
+  // Set timeout to 2 minutes (120000ms)
+  req.setTimeout(120000);
+  res.setTimeout(120000);
   next();
 });
 
-// Middleware untuk menjalankan scheduler pada setiap request jika di Vercel
-app.use(async (req, res, next) => {
-  if (process.env.VERCEL === '1' && checkAndUpdatePosts) {
-    try {
-      await checkAndUpdatePosts();
-    } catch (error) {
-      console.error('Error running scheduler on request:', error);
-    }
-  }
-  next();
-});
-
-// Create uploads directories if they don't exist
-const profilesDir = path.resolve(__dirname, 'uploads', 'profiles');
-const postsDir = path.resolve(__dirname, 'uploads', 'posts');
-
-console.log("Profiles directory path:", profilesDir);
-console.log("Posts directory path:", postsDir);
-
-// Disable directory creation on Vercel environment (serverless)
-if (process.env.VERCEL !== '1') {
-  try {
-    console.log("Creating upload directories...");
-    fs.mkdirSync(profilesDir, { recursive: true });
-    fs.mkdirSync(postsDir, { recursive: true });
-    console.log('Upload directories created successfully');
-    console.log("Profiles directory exists:", fs.existsSync(profilesDir));
-    console.log("Posts directory exists:", fs.existsSync(postsDir));
-    
-    // Set permissions
-    try {
-      fs.chmodSync(profilesDir, 0o777);
-      fs.chmodSync(postsDir, 0o777);
-      console.log("Directory permissions set to 777");
-    } catch (permErr) {
-      console.error("Error setting directory permissions:", permErr);
-    }
-  } catch (err) {
-    console.error('Error creating upload directories:', err);
-    console.error('Error details:', JSON.stringify({
-      code: err.code,
-      path: err.path,
-      errno: err.errno,
-      syscall: err.syscall
-    }));
-  }
-}
-
-// Middleware untuk serving static files
-const uploadsPath = path.resolve(__dirname, 'uploads');
-console.log("Uploads static path:", uploadsPath);
-console.log("Uploads directory exists:", fs.existsSync(uploadsPath));
-
-// Ensure uploads directory is created if it doesn't exist yet
-if (!fs.existsSync(uploadsPath)) {
-  fs.mkdirSync(uploadsPath, { recursive: true });
-  console.log("Created main uploads directory");
-}
-
-app.use('/uploads', express.static(uploadsPath));
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Specific routes for uploads subdirectories
-const postsStaticPath = path.resolve(__dirname, 'uploads', 'posts');
-const profilesStaticPath = path.resolve(__dirname, 'uploads', 'profiles');
-
-console.log("Posts static path:", postsStaticPath);
-console.log("Posts static directory exists:", fs.existsSync(postsStaticPath));
-console.log("Profiles static path:", profilesStaticPath);
-console.log("Profiles static directory exists:", fs.existsSync(profilesStaticPath));
-
-app.use('/uploads/posts', express.static(postsStaticPath));
-app.use('/uploads/profiles', express.static(profilesStaticPath));
+// No need to create local upload directories as we're using Cloudinary
+console.log("Using Cloudinary for image storage");
 
 app.get("/", (req, res) => {
   console.log("Root endpoint called");
@@ -192,9 +78,12 @@ mongoose
   .connect(mongoDBURL, {})
   .then(() => {
     console.log("Database connected successfully");
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
+    
+    // Set server-wide timeout
+    server.timeout = 120000; // 2 minutes
   })
   .catch((err) => {
     console.log("MongoDB connection error:");

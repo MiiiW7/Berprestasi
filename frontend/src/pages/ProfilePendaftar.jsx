@@ -2,9 +2,11 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import instance from "../utils/axios"; // Import axios instance
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/navbar";
 import Footer from "../components/Footer";
+import { getProfilePictureUrl as getProfileImageUrl } from "../utils/imageUtils";
 
 const ProfilePendaftar = () => {
   const navigate = useNavigate();
@@ -25,15 +27,13 @@ const ProfilePendaftar = () => {
   const BACKEND_URL = "http://localhost:9000";
 
   const getImageUrl = (imagePath, postId) => {
-    // If we've already had an error for this image, return placeholder immediately
-    if (imageErrors[postId]) {
-      return "/placeholder-image.jpg";
-    }
+    if (!imagePath) return "/default-image.png";
     
-    if (!imagePath) return "/placeholder-image.jpg";
-    if (imagePath.startsWith("http")) return imagePath;
-    console.log("Constructing image URL for:", imagePath);
-    return `${BACKEND_URL}${imagePath}`;
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    } else {
+      return `${BACKEND_URL}${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
+    }
   };
 
   const handleImageChange = (e) => {
@@ -65,13 +65,13 @@ const ProfilePendaftar = () => {
   };
 
   // Fungsi untuk mendapatkan URL gambar profil
-  const getProfilePictureUrl = () => {
+  const getUserProfilePictureUrl = () => {
     // Jika ada preview image (baru diupload), gunakan preview
     if (previewImage) return previewImage;
 
-    // Jika ada foto profil dari user, gunakan URL backend
+    // Jika ada foto profil dari user, gunakan utility function
     if (user?.profilePicture) {
-      return `http://localhost:9000${user.profilePicture}`;
+      return getProfileImageUrl(user.profilePicture);
     }
 
     // Jika tidak ada, gunakan default
@@ -82,7 +82,7 @@ const ProfilePendaftar = () => {
     const fetchFollowedPosts = async () => {
       setIsLoading(true);
       try {
-        const response = await axios.get(`${BACKEND_URL}/user/followed-posts`, {
+        const response = await instance.get(`/user/followed-posts`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setFollowedPosts(response.data.data);
@@ -120,8 +120,9 @@ const ProfilePendaftar = () => {
 
     try {
       console.log("Attempting to update profile...");
-      const response = await axios.put(
-        'http://localhost:9000/user/profile',
+      // Use instance with right content type and authorization
+      const response = await instance.put(
+        '/user/profile',
         submitData,
         {
           headers: {
@@ -169,15 +170,15 @@ const ProfilePendaftar = () => {
       window.confirm("Apakah Anda yakin ingin berhenti mengikuti lomba ini?")
     ) {
       try {
-        await axios.post(
-          `${BACKEND_URL}/post/${postId}/unfollow`,
+        await instance.post(
+          `/post/${postId}/unfollow`,
           {},
           {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
         // Refresh followed posts after unfollowing
-        const response = await axios.get(`${BACKEND_URL}/user/followed-posts`, {
+        const response = await instance.get(`/user/followed-posts`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setFollowedPosts(response.data.data);
@@ -232,7 +233,7 @@ const ProfilePendaftar = () => {
                 >
                   <div className="relative">
                     <img
-                      src={getProfilePictureUrl()}
+                      src={getUserProfilePictureUrl()}
                       alt="Profile"
                       className="w-40 h-40 rounded-full object-cover border-4 border-white shadow-lg"
                     />

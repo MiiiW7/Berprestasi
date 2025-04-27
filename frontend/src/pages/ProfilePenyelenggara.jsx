@@ -2,9 +2,11 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import instance from "../utils/axios"; // Import axios instance
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/navbar";
 import Footer from "../components/Footer";
+import { getProfilePictureUrl as getProfileImageUrl } from "../utils/imageUtils";
 
 const ProfilePenyelenggara = () => {
   const navigate = useNavigate();
@@ -74,8 +76,9 @@ const ProfilePenyelenggara = () => {
     }
 
     try {
-      const response = await axios.put(
-        'http://localhost:9000/user/profile', 
+      console.log("Sending profile update request...");
+      const response = await instance.put(
+        '/user/profile', 
         submitData, 
         {
           headers: {
@@ -85,34 +88,52 @@ const ProfilePenyelenggara = () => {
         }
       );
   
+      console.log("Profile update successful:", response.data);
       // Update profil di context atau state
       updateProfile(response.data.data);
       
       // Reset state editing
       setIsEditing(false);
+      setPreviewImage(null);
+      setProfilePicture(null);
+      
+      // Show success message
+      alert('Profil berhasil diperbarui!');
     } catch (error) {
       console.error('Error updating profile:', error);
-      // Tangani error
+      
+      // More detailed error message
+      let errorMessage = 'Gagal memperbarui profil. ';
+      
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        errorMessage += `Server error: ${error.response.status} - ${error.response.data?.message || 'Unknown error'}`;
+        console.error('Error response data:', error.response.data);
+      } else if (error.request) {
+        // The request was made but no response was received
+        errorMessage += 'Tidak ada respon dari server. Cek koneksi internet Anda.';
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        errorMessage += error.message;
+      }
+      
+      alert(errorMessage);
     }
   };
 
   // Fungsi untuk mendapatkan URL gambar profil
-  const getProfilePictureUrl = () => {
-    // If we already know this profile image failed, return default immediately
-    if (profileImageError) {
-      return '/default-avatar.png';
-    }
-    
+  const getUserProfilePictureUrl = () => {
     // Jika ada preview image (baru diupload), gunakan preview
     if (previewImage) return previewImage;
-    
+
     // Jika ada foto profil dari user, gunakan URL backend
     if (user?.profilePicture) {
-      return `http://localhost:9000${user.profilePicture}`;
+      return getProfileImageUrl(user.profilePicture);
     }
-    
+
     // Jika tidak ada, gunakan default
-    return '/default-avatar.png';
+    return "/default-avatar.png";
   };
 
   const BACKEND_URL = "http://localhost:9000";
@@ -121,7 +142,7 @@ const ProfilePenyelenggara = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`${BACKEND_URL}/post/user/${user.id}`, {
+      const response = await instance.get(`/post/user/${user.id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -144,7 +165,7 @@ const ProfilePenyelenggara = () => {
 
   const deletePost = async (postId) => {
     try {
-      await axios.delete(`${BACKEND_URL}/post/${postId}`, {
+      await instance.delete(`/post/${postId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -227,9 +248,9 @@ const ProfilePenyelenggara = () => {
                 >
                   <div className="relative">
                     <img
-                      src={getProfilePictureUrl()}
+                      src={getUserProfilePictureUrl()}
                       alt="Profile"
-                      className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-white shadow-lg"
+                      className="w-40 h-40 rounded-full object-cover border-4 border-white shadow-lg"
                       onError={(e) => {
                         console.log("Profile image error, using default");
                         e.target.src = "/default-avatar.png";

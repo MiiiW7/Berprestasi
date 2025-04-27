@@ -1,8 +1,5 @@
 import express from "express";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-import fs from "fs";
-import { uploadPost } from "../multer.js";
+import { uploadPost, cloudinary } from "../middleware/upload.js";
 import Post from "../models/post.js";
 import { User } from "../models/user.js";
 import { verifyToken } from "../middleware/auth.js";
@@ -10,15 +7,6 @@ import Notification from "../models/notification.js";
 import Engagement from "../models/engagement.js";
 
 const router = express.Router();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const uploadDir = join(__dirname, "../uploads");
-
-// Pastikan folder uploads ada
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
 
 // CREATE - Membuat post baru
 router.post("/", verifyToken, uploadPost.single("image"), async (req, res) => {
@@ -38,7 +26,7 @@ router.post("/", verifyToken, uploadPost.single("image"), async (req, res) => {
       creator: req.user.id,
       pelaksanaan: new Date(req.body.pelaksanaan),
       link: req.body.link || "",
-      image: `/uploads/posts/${req.file.filename}`,
+      image: req.file.path || req.file.secure_url,
       status: req.body.status || "Belum Dilaksanakan",
     });
 
@@ -83,7 +71,7 @@ router.get("/", async (req, res) => {
           creator: creator ? { 
             id: creator.id, 
             name: creator.name,
-            profilePicture: creator.profilePicture || '/uploads/profiles/default-avatar.png'
+            profilePicture: creator.profilePicture || 'https://res.cloudinary.com/demo/image/upload/v1/sample/avatar-placeholder'
           } : null,
         };
       })
@@ -150,7 +138,7 @@ router.get("/trending", async (req, res) => {
           creator: creator ? { 
             id: creator.id, 
             name: creator.name,
-            profilePicture: creator.profilePicture || '/uploads/profiles/default-avatar.png'
+            profilePicture: creator.profilePicture || 'https://res.cloudinary.com/demo/image/upload/v1/sample/avatar-placeholder'
           } : null,
         };
       })
@@ -193,7 +181,7 @@ router.get("/:id", async (req, res) => {
       creator: creator ? { 
         id: creator.id, 
         name: creator.name, 
-        profilePicture: creator.profilePicture || '/uploads/profiles/default-avatar.png'
+        profilePicture: creator.profilePicture || 'https://res.cloudinary.com/demo/image/upload/v1/sample/avatar-placeholder'
       } : null,
     };
 
@@ -317,7 +305,20 @@ router.get("/jenjang/:jenjang", async (req, res) => {
 
 // UPDATE - Memperbarui post berdasarkan ID
 router.put("/:id", verifyToken, uploadPost.single("image"), async (req, res) => {
+  console.log(`Starting update for post ID: ${req.params.id}`);
+  console.log(`Request has image: ${!!req.file}`);
+  
   try {
+    // Validate post exists first
+    const existingPost = await Post.findOne({ id: req.params.id });
+    if (!existingPost) {
+      return res.status(404).json({
+        success: false,
+        message: "Post tidak ditemukan",
+      });
+    }
+    
+    console.log("Parsing categories and jenjangs");
     let categories;
     try {
       // Parse categories dan ambil array yang unik (tidak duplikat)
@@ -333,6 +334,7 @@ router.put("/:id", verifyToken, uploadPost.single("image"), async (req, res) => 
           "Teknologi",
         ].includes(cat)
       );
+      console.log(`Categories parsed successfully: ${categories.join(', ')}`);
     } catch (parseError) {
       console.error("Error parsing categories:", parseError);
       return res.status(400).json({
@@ -350,38 +352,72 @@ router.put("/:id", verifyToken, uploadPost.single("image"), async (req, res) => 
       jenjangs = parsedJenjangs.filter((cat) =>
         ["SD", "SMP", "SMA", "SMK", "Mahasiswa", "Umum"].includes(cat)
       );
+      console.log(`Jenjangs parsed successfully: ${jenjangs.join(', ')}`);
     } catch (parseError) {
-      console.error("Error parsing categories:", parseError);
+      console.error("Error parsing jenjangs:", parseError);
       return res.status(400).json({
         success: false,
-        message: "Format kategori tidak valid",
+        message: "Format jenjang tidak valid",
         error: parseError.message,
       });
     }
 
+    // Prepare update data
     let updateData = {
       title: req.body.title,
       description: req.body.description,
-      categories: categories, // Menggunakan categories yang sudah difilter
-      jenjangs: jenjangs, // Menggunakan jenjangs yang sudah difilter
+      categories: categories,
+      jenjangs: jenjangs,
       pelaksanaan: new Date(req.body.pelaksanaan),
       link: req.body.link || "",
       status: req.body.status,
     };
-
+    
+    // Handle image update if needed
     if (req.file) {
-      updateData.image = `/uploads/posts/${req.file.filename}`;
+      console.log("Processing new image upload");
+      console.log(`New image info: ${JSON.stringify({
+        path: req.file.path,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      })}`);
 
-      // Optional: Hapus foto lama
-      const oldPost = await Post.findOne({ id: req.params.id });
-      if (oldPost.image) {
-        const oldImagePath = join(__dirname, "..", oldPost.image);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
+      // Set the new image URL
+      updateData.image = req.file.path || req.file.secure_url;
+      
+      // Delete old image from Cloudinary
+      if (existingPost.image && existingPost.image.includes('cloudinary')) {
+        try {
+          console.log(`Attempting to delete old image: ${existingPost.image}`);
+          
+          // Extract public_id from the Cloudinary URL
+          const urlParts = existingPost.image.split('/');
+          const filenameWithExtension = urlParts[urlParts.length - 1];
+          const publicIdWithExtension = filenameWithExtension.split('?')[0]; // Remove query params if any
+          const publicId = publicIdWithExtension.split('.')[0];
+          
+          if (publicId) {
+            console.log(`Deleting Cloudinary resource with public ID: ${publicId}`);
+            await cloudinary.uploader.destroy(publicId);
+            console.log("Old Cloudinary post image deleted successfully");
+          } else {
+            console.log("Could not extract valid public ID from image URL");
+          }
+        } catch (err) {
+          // Just log the error, but don't fail the update
+          console.error("Error deleting old Cloudinary image:", err);
+          console.error("Error details:", {
+            name: err.name,
+            message: err.message,
+            stack: err.stack
+          });
         }
       }
+    } else {
+      console.log("No new image uploaded, keeping existing image");
     }
 
+    console.log("Updating post in database");
     const updatedPost = await Post.findOneAndUpdate(
       { id: req.params.id },
       updateData,
@@ -389,21 +425,24 @@ router.put("/:id", verifyToken, uploadPost.single("image"), async (req, res) => 
     );
 
     if (!updatedPost) {
+      console.error(`Post not found during update. ID: ${req.params.id}`);
       return res.status(404).json({
         success: false,
-        message: "Post tidak ditemukan",
+        message: "Post tidak ditemukan saat mengupdate",
       });
     }
 
-    // Ambil data creator
+    // Get creator data
+    console.log(`Fetching creator data for ID: ${updatedPost.creator}`);
     const creator = await User.findOne({ id: updatedPost.creator }).lean();
 
-    // Gabungkan data post dengan data creator
+    // Combine post with creator data
     const postWithCreator = {
       ...updatedPost.toObject(),
       creator: creator ? { id: creator.id, name: creator.name } : null,
     };
 
+    console.log(`Post updated successfully. ID: ${updatedPost.id}`);
     res.status(200).json({
       success: true,
       message: "Post berhasil diperbarui",
@@ -411,6 +450,21 @@ router.put("/:id", verifyToken, uploadPost.single("image"), async (req, res) => 
     });
   } catch (error) {
     console.error("Error updating post:", error);
+    console.error("Error details:", {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
+    // Handle timeouts specifically
+    if (error.name === 'TimeoutError') {
+      return res.status(504).json({
+        success: false,
+        message: "Waktu upload gambar habis. Coba lagi dengan gambar yang lebih kecil atau koneksi yang lebih stabil.",
+        error: error.message,
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: "Terjadi kesalahan saat memperbarui post",
@@ -421,31 +475,67 @@ router.put("/:id", verifyToken, uploadPost.single("image"), async (req, res) => 
 
 // DELETE - Menghapus post berdasarkan ID
 router.delete("/:id", verifyToken, async (req, res) => {
+  console.log(`Starting deletion for post ID: ${req.params.id}`);
+  
   try {
     const post = await Post.findOne({ id: req.params.id });
 
     if (!post) {
+      console.log(`Post not found for deletion. ID: ${req.params.id}`);
       return res.status(404).json({
         success: false,
         message: "Post tidak ditemukan",
       });
     }
 
-    // Hapus file gambar jika ada
-    if (post.image) {
-      const imagePath = join(__dirname, "..", post.image);
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
+    // Hapus file gambar dari Cloudinary jika ada
+    if (post.image && post.image.includes('cloudinary')) {
+      try {
+        console.log(`Attempting to delete image: ${post.image}`);
+        
+        // Extract public_id from the Cloudinary URL
+        const urlParts = post.image.split('/');
+        const filenameWithExtension = urlParts[urlParts.length - 1];
+        const publicIdWithExtension = filenameWithExtension.split('?')[0]; // Remove query params if any
+        const publicId = publicIdWithExtension.split('.')[0];
+        
+        if (publicId) {
+          console.log(`Deleting Cloudinary resource with public ID: ${publicId}`);
+          const deleteResult = await cloudinary.uploader.destroy(publicId);
+          console.log(`Cloudinary deletion result: ${JSON.stringify(deleteResult)}`);
+        } else {
+          console.log("Could not extract valid public ID from image URL");
+        }
+      } catch (err) {
+        // Log the error but continue with post deletion
+        console.error("Error deleting Cloudinary image:", err);
+        console.error("Error details:", {
+          name: err.name,
+          message: err.message,
+          stack: err.stack
+        });
       }
+    } else {
+      console.log("No Cloudinary image to delete");
     }
 
-    await Post.findOneAndDelete({ id: req.params.id });
+    // Delete the post from the database
+    console.log(`Deleting post from database. ID: ${req.params.id}`);
+    const deleteResult = await Post.findOneAndDelete({ id: req.params.id });
+    console.log(`Deletion result: ${deleteResult ? 'Success' : 'No post deleted'}`);
 
     res.status(200).json({
       success: true,
       message: "Post berhasil dihapus",
     });
   } catch (error) {
+    console.error("Error deleting post:", error);
+    console.error("Error details:", {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
     res.status(500).json({
       success: false,
       message: "Terjadi kesalahan saat menghapus post",

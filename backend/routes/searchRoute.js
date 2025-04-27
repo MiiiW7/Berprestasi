@@ -46,7 +46,7 @@ router.get("/search", async (req, res) => {
                   id: creator.id, 
                   name: creator.name, 
                   email: creator.email,
-                  profilePicture: creator.profilePicture || '/uploads/profiles/default-avatar.png'
+                  profilePicture: creator.profilePicture || 'https://res.cloudinary.com/demo/image/upload/v1/sample/avatar-placeholder'
                 } 
               : null,
           };

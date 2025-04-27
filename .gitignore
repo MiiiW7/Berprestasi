@@ -3,11 +3,9 @@ node_modules/
 /node_modules
 */node_modules
 */*/node_modules
-../node_modules/
 **/node_modules
-node_modules
 
-# Local uploads directory (deprecated, using Cloudinary now)
+# Local uploads directory
 uploads/
 /uploads
 
@@ -29,5 +27,4 @@ yarn-error.log*
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
-
+*.sw? 
