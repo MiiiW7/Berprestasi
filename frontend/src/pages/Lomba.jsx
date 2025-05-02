@@ -4,14 +4,13 @@ import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/navbar";
 import Post from "../components/Post";
+import { BACKEND_URL } from "../config/constants";
 
 const Lomba = () => {
   const { user, token } = useAuth();
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const BACKEND_URL = "http://localhost:9000";
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return "";

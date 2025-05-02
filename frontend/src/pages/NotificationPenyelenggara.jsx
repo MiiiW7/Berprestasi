@@ -5,6 +5,7 @@ import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/navbar";
 import Footer from "../components/Footer";
+import { BACKEND_URL } from "../config/constants";
 
 const NotificationPenyelenggara = () => {
   const { user, token } = useAuth();
@@ -12,8 +13,6 @@ const NotificationPenyelenggara = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-
-  const BACKEND_URL = "http://localhost:9000";
 
   const fetchNotifications = async () => {
     try {

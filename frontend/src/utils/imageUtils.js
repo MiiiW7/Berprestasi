@@ -8,28 +8,10 @@ const BACKEND_URL = instance.defaults.baseURL;
  * @param {string} imageUrl - The raw image URL from the API
  * @returns {string} - Properly formatted image URL
  */
-export const getImageUrl = (imageUrl) => {
-  if (!imageUrl) return "/default-avatar.png";
-  
-  // If it's already a full URL (Cloudinary URLs are https://...)
-  if (imageUrl.startsWith('http')) {
-    console.log("Using direct URL:", imageUrl);
-    return imageUrl;
-  }
-  
-  // Handle cloudinary URLs
-  if (imageUrl.includes('cloudinary')) {
-    console.log("Detected Cloudinary URL:", imageUrl);
-    // It might be a partial URL without protocol
-    if (!imageUrl.startsWith('https://')) {
-      return `https://${imageUrl.replace(/^\/+/, '')}`;
-    }
-    return imageUrl;
-  }
-  
-  // Handle backend paths
-  console.log("Using backend URL:", `${BACKEND_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`);
-  return `${BACKEND_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+export const getImageUrl = (imagePath, baseUrl = 'https://berprestasi-cloudinary.vercel.app') => {
+  if (!imagePath) return '/placeholder-image.jpg';
+  if (imagePath.startsWith('http')) return imagePath;
+  return `${baseUrl}${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
 };
 
 /**
@@ -37,10 +19,32 @@ export const getImageUrl = (imageUrl) => {
  * @param {string} profilePicture - The profile picture URL from the API
  * @returns {string} - Properly formatted profile picture URL
  */
-export const getProfilePictureUrl = (profilePicture) => {
-  if (!profilePicture || profilePicture.trim() === '') {
-    return "/default-avatar.png";
+export const getProfilePictureUrl = (imagePath, baseUrl = 'https://berprestasi-cloudinary.vercel.app') => {
+  if (!imagePath) return '/default-profile.png';
+  if (imagePath.startsWith('http')) return imagePath;
+  return `${baseUrl}${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
+};
+
+export const validateImageFile = (file) => {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+  const maxSize = 2 * 1024 * 1024; // 2MB
+
+  if (!allowedTypes.includes(file.type)) {
+    return { valid: false, error: 'Hanya file gambar (JPEG, PNG, GIF) yang diperbolehkan' };
   }
-  
-  return getImageUrl(profilePicture);
+
+  if (file.size > maxSize) {
+    return { valid: false, error: 'Ukuran file maksimal 2MB' };
+  }
+
+  return { valid: true };
+};
+
+export const createImagePreview = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }; 

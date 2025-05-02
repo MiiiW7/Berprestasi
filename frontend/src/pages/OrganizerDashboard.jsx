@@ -4,6 +4,7 @@ import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/navbar";
 import Footer from "../components/Footer";
+import { BACKEND_URL } from "../config/constants";
 
 const OrganizerDashboard = () => {
   const { user, token } = useAuth();
@@ -15,8 +16,6 @@ const OrganizerDashboard = () => {
   const [activeTab, setActiveTab] = useState('active');
   const [participantsData, setParticipantsData] = useState({});
   const [loadingParticipants, setLoadingParticipants] = useState({});
-
-  const BACKEND_URL = "http://localhost:9000";
 
   // Fetch user data and competitions on component mount
   useEffect(() => {

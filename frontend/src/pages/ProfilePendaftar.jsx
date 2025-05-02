@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/navbar";
 import Footer from "../components/Footer";
 import { getProfilePictureUrl as getProfileImageUrl } from "../utils/imageUtils";
+import { BACKEND_URL } from "../config/constants";
 
 const ProfilePendaftar = () => {
   const navigate = useNavigate();
@@ -23,8 +24,6 @@ const ProfilePendaftar = () => {
   const [profilePicture, setProfilePicture] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
-
-  const BACKEND_URL = "http://localhost:9000";
 
   const getImageUrl = (imagePath, postId) => {
     if (!imagePath) return "/default-image.png";

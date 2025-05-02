@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Navbar from '../components/navbar';
 import Footer from '../components/Footer';
+import { BACKEND_URL } from '../config/constants';
 
 const SearchPage = () => {
   const location = useLocation();
@@ -14,8 +15,6 @@ const SearchPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
-
-  const BACKEND_URL = "http://localhost:9000";
 
   // Fungsi untuk mendapatkan URL gambar
   const getImageUrl = (imagePath, itemId) => {

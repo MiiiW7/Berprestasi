@@ -5,14 +5,13 @@ import axios from "axios";
 import Navbar from "../components/navbar";
 import Post from "../components/Post";
 import Footer from "../components/Footer";
+import { BACKEND_URL } from "../config/constants";
 
 const CategoryPage = () => {
   const { category } = useParams();
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const BACKEND_URL = "http://localhost:9000";
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return "";

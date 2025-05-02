@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import { BACKEND_URL } from "../config/constants";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -36,7 +37,7 @@ const Navbar = () => {
 
     try {
       const response = await axios.get(
-        "http://localhost:9000/user/notifications",
+        `${BACKEND_URL}/user/notifications`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -58,7 +59,7 @@ const Navbar = () => {
 
     try {
       const response = await axios.get(
-        "http://localhost:9000/user/notifications/penyelenggara",
+        `${BACKEND_URL}/user/notifications/penyelenggara`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -151,7 +152,7 @@ const Navbar = () => {
       <nav className="flex justify-between items-center w-[92%] mx-auto">
         <div className="flex items-center">
           <Link to={user?.role === "penyelenggara" ? "/dashboard" : "/"}>
-            <img src={logo} alt="Logo" width="45" className="mr-4" />
+            <a className="text-2xl font-bold text-[#fdd813]">berprestasi</a>
           </Link>
         </div>
 

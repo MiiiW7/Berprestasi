@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
+import { BACKEND_URL } from "../config/constants";
 
 const CreatePost = () => {
   const navigate = useNavigate();
@@ -143,7 +144,7 @@ const CreatePost = () => {
       }
 
       const response = await axios.post(
-        "http://localhost:9000/post",
+        `${BACKEND_URL}/post`,
         formDataToSend,
         {
           headers: {

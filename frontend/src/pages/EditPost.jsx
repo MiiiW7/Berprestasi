@@ -3,8 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/navbar";
+import { BACKEND_URL } from "../config/constants";
 
-const BACKEND_URL = "http://localhost:9000";
 const AVAILABLE_CATEGORIES = [
   "Akademik",
   "Non-Akademik",

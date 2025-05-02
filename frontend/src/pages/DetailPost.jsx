@@ -5,6 +5,7 @@ import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/navbar";
 import Footer from "../components/Footer";
+import { BACKEND_URL } from "../config/constants";
 
 const DetailPost = () => {
   const { id } = useParams();
@@ -16,9 +17,6 @@ const DetailPost = () => {
   const [error, setError] = useState(null);
   const [followers, setFollowers] = useState([]);
   const [showFollowers, setShowFollowers] = useState(false);
-
-
-  const BACKEND_URL = "http://localhost:9000";
 
   useEffect(() => {
     const fetchPostDetail = async () => {

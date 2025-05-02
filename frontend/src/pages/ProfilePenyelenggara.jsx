@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/navbar";
 import Footer from "../components/Footer";
 import { getProfilePictureUrl as getProfileImageUrl } from "../utils/imageUtils";
+import { BACKEND_URL } from "../config/constants";
 
 const ProfilePenyelenggara = () => {
   const navigate = useNavigate();
@@ -135,8 +136,6 @@ const ProfilePenyelenggara = () => {
     // Jika tidak ada, gunakan default
     return "/default-avatar.png";
   };
-
-  const BACKEND_URL = "http://localhost:9000";
 
   const fetchUserPosts = async () => {
     setIsLoading(true);

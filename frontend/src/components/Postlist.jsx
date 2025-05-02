@@ -2,14 +2,13 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import Post from "./Post";
 import { useAuth } from "../context/AuthContext";
+import { BACKEND_URL } from "../config/constants";
 
 const Postlist = () => {
   const [dataPost, setDataPost] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user, token } = useAuth();
-
-  const BACKEND_URL = "http://localhost:9000";
 
   useEffect(() => {
     const fetchPosts = async () => {

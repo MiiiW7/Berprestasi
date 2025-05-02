@@ -4,10 +4,10 @@ import axios from "axios";
 import Navbar from "../components/navbar";
 import Postlist from '../components/Postlist';
 import Footer from "../components/Footer";
+import { BACKEND_URL } from "../config/constants";
 
 const Home = () => {
   const postListRef = useRef(null);
-  const BACKEND_URL = "http://localhost:9000";
   
   const [trendingCompetitions, setTrendingCompetitions] = useState([]);
   const [isLoadingTrending, setIsLoadingTrending] = useState(true);
